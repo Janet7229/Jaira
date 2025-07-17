@@ -1,80 +1,484 @@
 
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'">
-    <title>Site not found &middot; GitHub Pages</title>
-    <style type="text/css" media="screen">
-      body {
-        background-color: #f1f1f1;
-        margin: 0;
-        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-      }
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Dynamic Survey with Admin Control + Emoji Reactions</title>
 
-      .container { margin: 50px auto 40px auto; width: 600px; text-align: center; }
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
-      a { color: #4183c4; text-decoration: none; }
-      a:hover { text-decoration: underline; }
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .btn { padding: 10px 20px; margin: 5px; border:1px solid #444; background:#eee; cursor:pointer; }
+    .btn.selected { background:#4CAF50; color:#fff; }
+    #submit-btn[disabled] { background:#ccc; color:#666; cursor:not-allowed; }
+    #results { margin-top:30px; padding:15px; background:#f4f4f4; border:1px solid #ccc; white-space:pre-wrap; font-family:monospace; }
+    .bar { color:#4CAF50; }
+    .highlight { color:#4CAF50; font-weight:bold; }
+    .line { border-top:1px solid #ccc; margin:10px 0; }
+    .question-title { color: green; font-weight: bold; }
 
-      h1 { width: 800px; position:relative; left: -100px; letter-spacing: -1px; line-height: 60px; font-size: 60px; font-weight: 100; margin: 0px 0 50px 0; text-shadow: 0 1px 0 #fff; }
-      p { color: rgba(0, 0, 0, 0.5); margin: 20px 0; line-height: 1.6; }
+    .emoji-btn {
+      font-size: 24px;
+      padding: 0 5px;
+      margin: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .emoji-btn.selected {
+      transform: scale(1.2);
+    }
+    .emoji-btn .count {
+      font-size: 14px;
+      margin-left: 5px;
+    }
+    
+    @keyframes emoji-pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.4); }
+      100% { transform: scale(1); }
+    }
 
-      ul { list-style: none; margin: 25px 0; padding: 0; }
-      li { display: table-cell; font-weight: bold; width: 1%; }
+    .emoji-btn.clicked-animation {
+        animation: emoji-pop 0.4s ease-in-out;
+    }
 
-      .logo { display: inline-block; margin-top: 35px; }
-      .logo-img-2x { display: none; }
-      @media
-      only screen and (-webkit-min-device-pixel-ratio: 2),
-      only screen and (   min--moz-device-pixel-ratio: 2),
-      only screen and (     -o-min-device-pixel-ratio: 2/1),
-      only screen and (        min-device-pixel-ratio: 2),
-      only screen and (                min-resolution: 192dpi),
-      only screen and (                min-resolution: 2dppx) {
-        .logo-img-1x { display: none; }
-        .logo-img-2x { display: inline-block; }
-      }
+    #top-controls-wrapper {
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+    #auth-section {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+    #admin-panel {
+        display: none; 
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+    #admin-panel button {
+        display: block;
+        margin: 8px 0;
+    }
+    #admin-panel div {
+        margin-top: 8px;
+    }
 
-      #suggestions {
-        margin-top: 35px;
-        color: #ccc;
-      }
-      #suggestions a {
-        color: #666666;
-        font-weight: 200;
-        font-size: 14px;
-        margin: 0 10px;
-      }
+    /* Star Rating Styles */
+    #star-rating-container {
+        margin-top: 30px;
+        padding: 15px;
+        background: #f9f9f9;
+        border: 1px solid #ddd;
+    }
+    .star-btn {
+        color: #ddd;
+        cursor: pointer;
+        font-size: 30px;
+        transition: color 0.2s;
+    }
+    .star-btn.hover, .star-btn.selected {
+        color: #ffc107; /* Gold color */
+    }
+    #star-rating-results {
+        margin-top: 10px;
+        font-style: italic;
+        color: #555;
+    }
 
-    </style>
-  </head>
-  <body>
+  </style>
+</head>
 
-    <div class="container">
+<body>
+  <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
+  Version 0.0.9
+</div>
+  <img src="RInew.jpg" width="350" height="165" />
 
-      <h1>404</h1>
-      <p><strong>There isn't a GitHub Pages site here.</strong></p>
-
-      <p>
-        If you're trying to publish one,
-        <a href="https://help.github.com/pages/">read the full documentation</a>
-        to learn how to set up <strong>GitHub Pages</strong>
-        for your repository, organization, or user account.
-      </p>
-
-      <div id="suggestions">
-        <a href="https://githubstatus.com">GitHub Status</a> &mdash;
-        <a href="https://twitter.com/githubstatus">@githubstatus</a>
-      </div>
-
-      <a href="/" class="logo logo-img-1x">
-        <img width="32" height="32" title="" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyRpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDpFMTZCRDY3REIzRjAxMUUyQUQzREIxQzRENUFFNUM5NiIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDpFMTZCRDY3RUIzRjAxMUUyQUQzREIxQzRENUFFNUM5NiI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOkUxNkJENjdCQjNGMDExRTJBRDNEQjFDNEQ1QUU1Qzk2IiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOkUxNkJENjdDQjNGMDExRTJBRDNEQjFDNEQ1QUU1Qzk2Ii8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+SM9MCAAAA+5JREFUeNrEV11Ik1EY3s4+ddOp29Q5b0opCgKFsoKoi5Kg6CIhuwi6zLJLoYLopq4qsKKgi4i6CYIoU/q5iDAKs6syoS76IRWtyJ+p7cdt7sf1PGOD+e0c3dygAx/67ZzzPM95/877GYdHRg3ZjMXFxepQKNS6sLCwJxqNNuFpiMfjVs4ZjUa/pmmjeD6VlJS8NpvNT4QQ7mxwjSsJiEQim/1+/9lgMHgIr5ohuxG1WCw9Vqv1clFR0dCqBODElV6v90ogEDjGdYbVjXhpaendioqK07CIR7ZAqE49PT09BPL2PMgTByQGsYiZlQD4uMXtdr+JxWINhgINYhGT2MsKgMrm2dnZXgRXhaHAg5jEJodUAHxux4LudHJE9RdEdA+i3Juz7bGHe4mhE9FNrgwBCLirMFV9Okh5eflFh8PR5nK5nDabrR2BNJlKO0T35+Li4n4+/J+/JQCxhmu5h3uJoXNHPbmWZAHMshWB8l5/ipqammaAf0zPDDx1ONV3vurdidqwAQL+pEc8sLcAe1CCvQ3YHxIW8Pl85xSWNC1hADDIv0rIE/o4J0k3kww4xSlwIhcq3EFFOm7KN/hUGOQkt0CFa5WpNJlMvxBEz/IVQAxg/ZRZl9wiHA63yDYieM7DnLP5CiAGsC7I5sgtYKJGWe2A8seFqgFJrJjEPY1Cn3pJ8/9W1e5VWsFDTEmFrBcoDhZJEQkXuhICMyKpjhahqN21hRYATKfUOlDmkygrR4o4C0VOLGJKrOITKB4jijzdXygBKixyC5TDQdnk/Pz8qRw6oOWGlsTKGOQW6OH6FBWsyePxdOXLTgxiyebILZCjz+GLgMIKnXNzc49YMlcRdHXcSwxFVgTInQhC9G33UhNoJLuqq6t345p9y3eUy8OTk5PjAHuI9uo4b07FBaOhsu0A4Unc+T1TU1Nj3KsSSE5yJ65jqF2DDd8QqWYmAZrIM2VlZTdnZmb6AbpdV9V6ec9znf5Q7HjYumdRE0JOp3MjitO4SFa+cZz8Umqe3TCbSLvdfkR/kWDdNQl5InuTcysOcpFT35ZrbBxx4p3JAHlZVVW1D/634VRt+FvLBgK/v5LV9WS+10xMTEwtRw7XvqOL+e2Q8V3AYIOIAXQ26/heWVnZCVfcyKHg2CBgTpmPmjYM8l24GyaUHyaIh7XwfR9ErE8qHoDfn2LTNAVC0HX6MFcBIP8Bi+6F6cdW/DICkANRfx99fEYFQ7Nph5i/uQiA214gno7K+guhaiKg9gC62+M8eR7XsBsYJ4ilam60Fb7r7uAj8wFyuwM1oIOWgfmDy6RXEEQzJMPe23DXrVS7rtyD3Df8z/FPgAEAzWU5Ku59ZAUAAAAASUVORK5CYII=">
-      </a>
-
-      <a href="/" class="logo logo-img-2x">
-        <img width="32" height="32" title="" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyRpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoTWFjaW50b3NoKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDpEQUM1QkUxRUI0MUMxMUUyQUQzREIxQzRENUFFNUM5NiIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDpEQUM1QkUxRkI0MUMxMUUyQUQzREIxQzRENUFFNUM5NiI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOkUxNkJENjdGQjNGMDExRTJBRDNEQjFDNEQ1QUU1Qzk2IiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOkUxNkJENjgwQjNGMDExRTJBRDNEQjFDNEQ1QUU1Qzk2Ii8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+hfPRaQAAB6lJREFUeNrsW2mM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">
-      </a>
+  <div id="top-controls-wrapper">
+    <div id="auth-section">
+      <input id="email" type="email" placeholder="Admin Email"/>
+      <input id="password" type="password" placeholder="Password"/>
+      <button id="login-btn">Login</button>
+      <button id="logout-btn" style="display:none;">Logout</button>
+      <div id="login-message"></div>
     </div>
-  </body>
+    <div id="admin-panel">
+      <h4>Admin Controls</h4>
+      <button id="reset-btn">Reset Question Data</button>
+      <button id="reset-emoji-btn">Reset Emoji Counts</button>
+      <button id="reset-stars-btn">Reset Star Ratings</button>
+      <div id="global-toggle-container">
+        <label><input type="checkbox" id="global-toggle"/> <strong>Enable Submissions</strong></label>
+      </div>
+      <div id="emoji-toggle-container">
+        <label><input type="checkbox" id="emoji-visibility-toggle"/> <strong>Show Emoji Reactions</strong></label>
+      </div>
+      <div id="star-toggle-container">
+          <label><input type="checkbox" id="star-visibility-toggle"/> <strong>Show Star Rating</strong></label>
+      </div>
+      <div id="item-count-container">
+        <label><strong>Questions to Show:</strong></label>
+        <input type="number" id="item-count-input" min="0" max="100" value="5" style="width: 50px;"/>
+        <button id="update-item-count">Update</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="emoji-container" style="display:none;">
+    <div><strong>React with an emoji:</strong></div>
+    <div id="emoji-options">
+      <button class="emoji-btn" data-emoji="👍">👍 <span class="count">0</span></button>
+      <button class="emoji-btn" data-emoji="❤️">❤️ <span class="count">0</span></button>
+      <button class="emoji-btn" data-emoji="😂">😂 <span class="count">0</span></button>
+      <button class="emoji-btn" data-emoji="😮">😮 <span class="count">0</span></button>
+    </div>
+  </div>
+  
+  <div id="star-rating-container" style="display:none;">
+    <div><strong>Rate your experience:</strong></div>
+    <div id="star-options">
+        <span class="star-btn" data-rating="1">&#9734;</span>
+        <span class="star-btn" data-rating="2">&#9734;</span>
+        <span class="star-btn" data-rating="3">&#9734;</span>
+        <span class="star-btn" data-rating="4">&#9734;</span>
+        <span class="star-btn" data-rating="5">&#9734;</span>
+    </div>
+    <div id="star-rating-results">Loading...</div>
+  </div>
+
+  <div id="survey-container"></div>
+  <button id="submit-btn">Submit</button>
+
+  <div id="results"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_5YgdpDfpa0dJtcfkUii_UjCKO9oF4J0",
+      authDomain: "shamankingdata.firebaseapp.com",
+      projectId: "shamankingdata",
+      storageBucket: "shamankingdata.appspot.com",
+      messagingSenderId: "757444066890",
+      appId: "1:757444066890:web:e4f9d41e2905e588d930b3"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore(), auth = firebase.auth();
+
+    let isAdmin = false;
+
+    function getUserId() {
+      let uid = localStorage.getItem('userId');
+      if (!uid) {
+        uid = 'user_' + Math.random().toString(36).substr(2,9);
+        localStorage.setItem('userId', uid);
+      }
+      return uid;
+    }
+    const userId = getUserId();
+    
+    // --- UTILITY FUNCTIONS ---
+    function disableSubmit(text='Already Submitted'){
+      const btn=document.getElementById('submit-btn');
+      btn.disabled=true; btn.innerText=text;
+    }
+    function enableSubmit(){
+      const btn=document.getElementById('submit-btn');
+      btn.disabled=false; btn.innerText='Submit';
+    }
+
+    // --- SURVEY LOGIC ---
+    async function isSubmissionEnabled(){
+      const doc = await db.collection('settings').doc('submissionControl').get();
+      return doc.exists && doc.data().enabled===true;
+    }
+    async function checkIfSubmitted(){
+      const allowed = await isSubmissionEnabled();
+      if(!allowed){ disableSubmit('Submission Disabled'); return; }
+      const doc = await db.collection('responses').doc(userId).get();
+      doc.exists ? disableSubmit() : enableSubmit();
+    }
+    // MODIFIED: This function now also hides the submit button when count is 0
+    function renderSurveyItems(count) {
+      const container = document.getElementById('survey-container');
+      const submitBtn = document.getElementById('submit-btn');
+      container.innerHTML = '';
+
+      if (count > 0) {
+          submitBtn.style.display = 'inline-block';
+      } else {
+          submitBtn.style.display = 'none';
+      }
+
+      for (let i = 1; i <= count; i++) {
+        const div = document.createElement('div');
+        div.className = 'survey-item';
+        div.dataset.item = i;
+        div.innerHTML = `<div class="question-title">Question #${i}</div>
+          <button class="btn" data-letter="A">A</button> <button class="btn" data-letter="B">B</button>
+          <button class="btn" data-letter="C">C</button> <button class="btn" data-letter="D">D</button>`;
+        container.appendChild(div);
+      }
+      document.querySelectorAll('.survey-item .btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.target.parentElement.querySelectorAll('.btn').forEach(b => b.classList.remove('selected'));
+          e.target.classList.add('selected');
+        });
+      });
+    }
+    async function showAggregatedResults() {
+      const settingsDoc = await db.collection('settings').doc('surveySettings').get();
+      const visible = (settingsDoc.exists && settingsDoc.data().visibleItems !== undefined) ? settingsDoc.data().visibleItems : 5;
+      const snapshot = await db.collection('responses').get();
+      const counts = {};
+      for (let i = 1; i <= visible; i++) { counts['item' + i] = { A: 0, B: 0, C: 0, D: 0 }; }
+      snapshot.forEach(doc => {
+        const ans = doc.data().answers;
+        Object.entries(ans).forEach(([k, v]) => { if (counts[k]?.[v] !== undefined) counts[k][v]++; });
+      });
+      let max = 1;
+      Object.values(counts).forEach(c => Object.values(c).forEach(v => max = Math.max(max, v)));
+      let html = '<h3>Results:</h3><pre>';
+      for (let i = 1; i <= visible; i++) {
+        const itm = counts['item' + i];
+        const m = Math.max(...Object.values(itm));
+        html += `Item ${i}:\n`;
+        Object.entries(itm).forEach(([ltr, cnt]) => {
+          const bar = `<span class="bar">${'█'.repeat((cnt / max) * 20)}</span>`;
+          const disp = cnt === m && cnt > 0 ? `<span class="highlight">${ltr}</span>` : ltr;
+          html += `  ${disp}: ${cnt} ${bar}\n`;
+        });
+        html += '</pre><div class="line"></div><pre>';
+      }
+      document.getElementById('results').innerHTML = html + '</pre>';
+    }
+
+    // --- EMOJI LOGIC ---
+    async function loadEmojiResults() {
+      const snap = await db.collection('emojiReactions').get();
+      const counts = {};
+      snap.forEach(doc => { counts[doc.data().emoji] = (counts[doc.data().emoji] || 0) + 1; });
+      document.querySelectorAll('.emoji-btn').forEach(btn => {
+        btn.querySelector('.count').innerText = counts[btn.dataset.emoji] || 0;
+      });
+    }
+    async function checkIfReacted() {
+      const doc = await db.collection('emojiReactions').doc(userId).get();
+      if (doc.exists) {
+        document.querySelectorAll('.emoji-btn').forEach(btn => {
+          btn.dataset.emoji === doc.data().emoji ? btn.classList.add('selected') : btn.disabled = true;
+        });
+      }
+    }
+    async function handleEmojiClick(e) {
+      const clickedButton = e.currentTarget;
+      clickedButton.classList.add('clicked-animation');
+      clickedButton.addEventListener('animationend', () => clickedButton.classList.remove('clicked-animation'), { once: true });
+      const doc = await db.collection('emojiReactions').doc(userId).get();
+      if (doc.exists) return;
+      await db.collection('emojiReactions').doc(userId).set({
+        emoji: clickedButton.dataset.emoji,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      loadEmojiResults();
+      checkIfReacted();
+    }
+    
+    // --- STAR RATING LOGIC ---
+    function updateStarsUI(rating) {
+        document.querySelectorAll('.star-btn').forEach(star => {
+            const isSelected = star.dataset.rating <= rating;
+            star.classList.toggle('selected', isSelected);
+            star.innerHTML = isSelected ? '&#9733;' : '&#9734;';
+        });
+    }
+    async function loadStarRatingResults() {
+        const doc = await db.collection('settings').doc('starRatingControl').get();
+        if (doc.exists && doc.data().totalRatings > 0) {
+            const { sumOfRatings = 0, totalRatings = 0 } = doc.data();
+            const avg = (sumOfRatings / totalRatings).toFixed(1);
+            const avgRounded = Math.round(avg);
+            document.getElementById('star-rating-results').innerText = `Average: ${avg} (${totalRatings} ratings)`;
+            if (!document.querySelector('.star-btn[disabled]')) {
+                 updateStarsUI(avgRounded);
+            }
+        } else {
+             document.getElementById('star-rating-results').innerText = 'No ratings yet.';
+             updateStarsUI(0);
+        }
+    }
+    async function checkIfStarRated() {
+        const doc = await db.collection('starRatings').doc(userId).get();
+        if(doc.exists) {
+            const userRating = doc.data().rating;
+            updateStarsUI(userRating);
+            document.querySelectorAll('.star-btn').forEach(star => star.setAttribute('disabled', true));
+        }
+    }
+    async function handleStarClick(rating) {
+        const starRatingRef = db.collection('starRatings').doc(userId);
+        const userRatingDoc = await starRatingRef.get();
+        if(userRatingDoc.exists) return;
+
+        const confirmationMessage = `You are about to submit a rating of ${rating} out of 5. Are you sure?`;
+        if (confirm(confirmationMessage)) {
+            const settingsRef = db.collection('settings').doc('starRatingControl');
+            try {
+                await db.runTransaction(async (transaction) => {
+                    const settingsDoc = await transaction.get(settingsRef);
+                    const { sumOfRatings = 0, totalRatings = 0 } = settingsDoc.data() || {};
+                    
+                    transaction.set(starRatingRef, { rating, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+                    transaction.set(settingsRef, {
+                        sumOfRatings: sumOfRatings + rating,
+                        totalRatings: totalRatings + 1
+                    }, { merge: true });
+                });
+                checkIfStarRated();
+                loadStarRatingResults();
+            } catch (e) {
+                console.error("Transaction failed: ", e);
+                alert("Could not submit rating. Please try again.");
+            }
+        } else {
+            return;
+        }
+    }
+
+    // --- ADMIN UTILITIES ---
+    async function resetData(collectionName, confirmationMsg) {
+        if (!isAdmin || !confirm(confirmationMsg)) return;
+        const snapshot = await db.collection(collectionName).get();
+        if (snapshot.empty) return alert(`No data to delete in ${collectionName}.`);
+        const batch = db.batch();
+        snapshot.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        alert(`${collectionName} data deleted.`);
+    }
+
+    // --- EVENT LISTENERS ---
+    document.getElementById('update-item-count').addEventListener('click', async () => {
+      const count = parseInt(document.getElementById('item-count-input').value, 10);
+      if (count < 0 || count > 100) return alert("Enter a number between 0 and 100.");
+      await db.collection('settings').doc('surveySettings').set({ visibleItems: count }, { merge: true });
+      alert(`Visible items updated to ${count}`);
+    });
+    document.getElementById('submit-btn').addEventListener('click', async () => { /* ... survey submit ... */ });
+    document.getElementById('global-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('submissionControl').set({ enabled: e.target.checked }); });
+    document.getElementById('emoji-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('emojiSettings').set({ visible: e.target.checked }, { merge: true }); });
+    document.getElementById('star-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('starRatingControl').set({ visible: e.target.checked }, { merge: true }); });
+    document.getElementById('reset-btn').addEventListener('click', () => resetData('responses', 'Delete all question data?'));
+    document.getElementById('reset-emoji-btn').addEventListener('click', () => { resetData('emojiReactions', 'Delete all emoji reactions?').then(loadEmojiResults); });
+    document.getElementById('reset-stars-btn').addEventListener('click', async () => {
+        await resetData('starRatings', 'Delete all star ratings?');
+        await db.collection('settings').doc('starRatingControl').set({ sumOfRatings: 0, totalRatings: 0 }, { merge: true });
+        updateStarsUI(0); 
+        loadStarRatingResults();
+    });
+    document.querySelectorAll('.emoji-btn').forEach(btn => btn.addEventListener('click', handleEmojiClick));
+    document.querySelectorAll('.star-btn').forEach(star => {
+        star.addEventListener('click', (e) => handleStarClick(parseInt(e.target.dataset.rating)));
+        star.addEventListener('mouseover', (e) => {
+            if (e.target.hasAttribute('disabled')) return;
+            updateStarsUI(e.target.dataset.rating);
+        });
+    });
+    document.getElementById('star-options').addEventListener('mouseout', () => {
+        if (!document.querySelector('.star-btn[disabled]')) {
+             loadStarRatingResults();
+        }
+    });
+
+    // --- AUTH & INITIALIZATION ---
+    auth.onAuthStateChanged(async user => {
+      const adminPanel = document.getElementById('admin-panel');
+      if (user) {
+        document.getElementById('login-message').innerText = 'Logged in as ' + user.email;
+        document.getElementById('login-btn').style.display = 'none';
+        document.getElementById('logout-btn').style.display = 'inline';
+        const adminDoc = await db.collection('admins').doc(user.uid).get();
+        if (adminDoc.exists) {
+          isAdmin = true;
+          adminPanel.style.display = 'block';
+        }
+      } else {
+        isAdmin = false;
+        adminPanel.style.display = 'none';
+        document.getElementById('login-message').innerText = '';
+        document.getElementById('login-btn').style.display = 'inline';
+        document.getElementById('logout-btn').style.display = 'none';
+      }
+    });
+    document.getElementById('login-btn').addEventListener('click', () => auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value).catch(e => alert("Login failed: " + e.message)));
+    document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
+
+    // NEW: Centralized real-time listeners for settings
+    function setupRealtimeListeners() {
+        // Questions visibility and submit button
+        db.collection('settings').doc('surveySettings').onSnapshot(doc => {
+            const count = (doc.exists && doc.data().visibleItems !== undefined) ? doc.data().visibleItems : 5;
+            renderSurveyItems(count);
+            if (isAdmin) {
+                document.getElementById('item-count-input').value = count;
+            }
+        });
+
+        // Emoji visibility
+        db.collection('settings').doc('emojiSettings').onSnapshot(doc => {
+            const visible = doc.exists && doc.data().visible;
+            document.getElementById('emoji-container').style.display = visible ? 'block' : 'none';
+            if (isAdmin) {
+                document.getElementById('emoji-visibility-toggle').checked = !!visible;
+            }
+        });
+
+        // Star rating visibility
+        db.collection('settings').doc('starRatingControl').onSnapshot(doc => {
+            const visible = doc.exists && doc.data().visible;
+            document.getElementById('star-rating-container').style.display = visible ? 'block' : 'none';
+            if (isAdmin) {
+                document.getElementById('star-visibility-toggle').checked = !!visible;
+            }
+        });
+    }
+
+    window.onload = () => {
+      checkIfSubmitted();
+      showAggregatedResults();
+      loadEmojiResults();
+      checkIfReacted();
+      loadStarRatingResults();
+      checkIfStarRated();
+      setupRealtimeListeners(); // Setup all real-time listeners
+    };
+
+    // Re-add full listener for survey submit
+    document.getElementById('submit-btn').addEventListener('click', async () => {
+      const allowed = await isSubmissionEnabled();
+      if (!allowed) return alert("Submissions are disabled.");
+      const doc = await db.collection('responses').doc(userId).get();
+      if (doc.exists) return alert("Already submitted.");
+      const answers = {};
+      const items = document.querySelectorAll('.survey-item');
+      let allAnswered = true;
+      items.forEach(item => {
+        const sel = item.querySelector('.btn.selected');
+        if (sel) answers['item' + item.dataset.item] = sel.dataset.letter; else allAnswered = false;
+      });
+      if (items.length > 0 && !allAnswered && !confirm("Some questions are unanswered. Submit anyway?")) return;
+      await db.collection('responses').doc(userId).set({ answers, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+      disableSubmit('Submitted'); alert("Thanks!");
+      showAggregatedResults();
+    });
+  </script>
+</body>
 </html>
