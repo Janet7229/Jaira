@@ -43,7 +43,7 @@
       100% { transform: scale(1); }
     }
 
-    .emoji-btn.clicked-animation {
+    .emoji-btn.clicked-animation, .yes-no-btn.clicked-animation { /* MODIFIED */
         animation: emoji-pop 0.4s ease-in-out;
     }
 
@@ -109,10 +109,13 @@
         background: #f0f0f0;
         cursor: pointer;
         font-weight: bold;
+        font-size: 18px; /* MODIFIED */
+        transition: transform 0.2s; /* MODIFIED */
     }
     .yes-no-btn.selected {
         background: #2196F3;
         color: white;
+        border-color: #0b7dda;
     }
     .yes-no-btn[disabled] {
         cursor: not-allowed;
@@ -123,7 +126,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-  Version 0.2.0
+  Version 0.3.0
 </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -140,7 +143,8 @@
       <button id="reset-btn">Reset Question Data</button>
       <button id="reset-emoji-btn">Reset Emoji Counts</button>
       <button id="reset-stars-btn">Reset Star Ratings</button>
-      <button id="reset-yes-no-btn">Reset Yes/No Survey</button> <div id="global-toggle-container">
+      <button id="reset-yes-no-btn">Reset Yes/No Survey</button> 
+      <div id="global-toggle-container">
         <label><input type="checkbox" id="global-toggle"/> <strong>Enable Submissions</strong></label>
       </div>
       <div id="emoji-toggle-container">
@@ -183,10 +187,10 @@
   </div>
 
   <div id="yes-no-survey-container" style="display:none;">
-    <div><strong>Special Survey: Did you enjoy the presentation?</strong></div>
+    <div><strong>Yes or No?</strong></div>
     <div id="yes-no-options">
-        <button class="yes-no-btn" data-choice="yes">Yes <span class="count">0</span></button>
-        <button class="yes-no-btn" data-choice="no">No <span class="count">0</span></button>
+        <button class="yes-no-btn" data-choice="yes">👍 Yes <span class="count">0</span></button>
+        <button class="yes-no-btn" data-choice="no">👎 No <span class="count">0</span></button>
     </div>
   </div>
 
@@ -388,7 +392,7 @@
         }
     }
 
-    // --- YES/NO SURVEY LOGIC (ADDED) ---
+    // --- YES/NO SURVEY LOGIC ---
     async function checkIfYesNoVoted() {
         const doc = await db.collection('yesNoVotes').doc(userId).get();
         if (doc.exists) {
@@ -402,8 +406,16 @@
         }
     }
 
+    // MODIFIED
     async function handleYesNoClick(e) {
-        const choice = e.currentTarget.dataset.choice;
+        const clickedButton = e.currentTarget;
+        // Add animation
+        clickedButton.classList.add('clicked-animation');
+        clickedButton.addEventListener('animationend', () => {
+            clickedButton.classList.remove('clicked-animation');
+        }, { once: true });
+
+        const choice = clickedButton.dataset.choice;
         const voteRef = db.collection('yesNoVotes').doc(userId);
         const userVoteDoc = await voteRef.get();
         if (userVoteDoc.exists) return; // Already voted
@@ -449,7 +461,7 @@
     document.getElementById('global-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('submissionControl').set({ enabled: e.target.checked }); });
     document.getElementById('emoji-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('emojiSettings').set({ visible: e.target.checked }, { merge: true }); });
     document.getElementById('star-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('starRatingControl').set({ visible: e.target.checked }, { merge: true }); });
-    document.getElementById('yes-no-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('yesNoSettings').set({ visible: e.target.checked }, { merge: true }); }); // ADDED
+    document.getElementById('yes-no-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('yesNoSettings').set({ visible: e.target.checked }, { merge: true }); }); 
     document.getElementById('reset-btn').addEventListener('click', () => resetData('responses', 'Delete all question data?'));
     document.getElementById('reset-emoji-btn').addEventListener('click', () => { resetData('emojiReactions', 'Delete all emoji reactions?').then(loadEmojiResults); });
     document.getElementById('reset-stars-btn').addEventListener('click', async () => {
@@ -458,7 +470,6 @@
         updateStarsUI(0); 
         loadStarRatingResults();
     });
-    // ADDED Reset button for Yes/No survey
     document.getElementById('reset-yes-no-btn').addEventListener('click', async () => {
         await resetData('yesNoVotes', 'Delete all Yes/No survey votes?');
         await db.collection('settings').doc('yesNoCounts').set({ yes: 0, no: 0 });
@@ -476,7 +487,6 @@
              loadStarRatingResults();
         }
     });
-    // ADDED Event listeners for Yes/No buttons
     document.querySelectorAll('.yes-no-btn').forEach(btn => btn.addEventListener('click', handleYesNoClick));
 
     document.getElementById('submit-btn').addEventListener('click', async () => {
@@ -559,7 +569,6 @@
             }
         });
         
-        // --- ADDED REALTIME LISTENERS ---
         db.collection('settings').doc('yesNoSettings').onSnapshot(doc => {
             const visible = doc.exists && doc.data().visible;
             document.getElementById('yes-no-survey-container').style.display = visible ? 'block' : 'none';
@@ -581,7 +590,7 @@
       checkIfReacted();
       loadStarRatingResults();
       checkIfStarRated();
-      checkIfYesNoVoted(); // ADDED
+      checkIfYesNoVoted(); 
       setupRealtimeListeners();
     };
   </script>
