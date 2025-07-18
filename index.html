@@ -97,35 +97,48 @@
 
     /* Yes/No Survey Styles -- MODIFIED */
     #yes-no-survey-container {
-        margin-top: 25px; /* Removed box, adjusted margin */
+        margin-top: 25px; 
     }
     .yes-no-btn {
-        padding: 8px 18px;
+        /* Removed box properties */
+        background: none;
+        border: none;
+        padding: 8px;
+        border-radius: 6px; /* For hover effect */
+
+        /* Kept interactive properties */
         margin: 5px;
-        border: 1px solid #555;
-        background: #f0f0f0;
         cursor: pointer;
         font-weight: bold;
         font-size: 16px; 
-        transition: transform 0.2s;
+        transition: transform 0.2s, background-color 0.2s;
         display: inline-flex;
         align-items: center;
     }
-    .yes-no-btn .icon { /* ADDED */
+    .yes-no-btn:not([disabled]):hover {
+        background-color: #f0f0f0; /* Subtle hover effect */
+    }
+    .yes-no-btn .icon {
         display: inline-block;
         transition: transform 0.4s ease-out;
         margin-right: 8px;
         font-size: 20px;
     }
     .yes-no-btn.selected {
-        background: #2196F3;
-        color: white;
-        border-color: #0b7dda;
+        color: #2196F3; /* Make selected text blue */
+        background: none; /* Ensure no background when selected */
+    }
+    .yes-no-btn.selected:hover {
+        background: none; /* No hover effect when selected */
     }
     .yes-no-btn[disabled] {
         cursor: not-allowed;
         opacity: 0.7;
     }
+    .yes-no-btn[disabled]:hover {
+        background: none; /* No hover effect when disabled */
+    }
+
 
     /* Flying Emoji Animation Styles */
     @keyframes fly-across {
@@ -153,7 +166,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-  Version 0.5.0
+  Version 0.6.0
 </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -637,26 +650,21 @@
             }
         });
 
-        // MODIFIED to handle icon scaling
         db.collection('settings').doc('yesNoCounts').onSnapshot(doc => {
             const counts = doc.data() || { yes: 0, no: 0 };
             const yesCount = counts.yes || 0;
             const noCount = counts.no || 0;
 
-            // Update the text counter
             document.querySelector('.yes-no-btn[data-choice="yes"] .count').innerText = yesCount;
             document.querySelector('.yes-no-btn[data-choice="no"] .count').innerText = noCount;
 
-            // Select the icon spans
             const yesIcon = document.querySelector('.yes-no-btn[data-choice="yes"] .icon');
             const noIcon = document.querySelector('.yes-no-btn[data-choice="no"] .icon');
 
-            // Function to calculate scale with a gentle curve and a cap
             const calculateScale = (count) => {
                 const baseScale = 1;
-                const scaleFactor = 0.4; // Controls how fast it grows
-                const maxScale = 4.0; // The absolute maximum size
-                // Use Math.log1p(x) which is ln(1+x), good for values starting at 0
+                const scaleFactor = 0.4;
+                const maxScale = 4.0;
                 let scale = baseScale + Math.log1p(count) * scaleFactor;
                 return Math.min(scale, maxScale);
             };
