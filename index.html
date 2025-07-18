@@ -10,7 +10,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
+    body { font-family: Arial, sans-serif; padding: 20px; overflow-x: hidden; } /* MODIFIED */
     .btn { padding: 10px 20px; margin: 5px; border:1px solid #444; background:#eee; cursor:pointer; }
     .btn.selected { background:#4CAF50; color:#fff; }
     #submit-btn[disabled] { background:#ccc; color:#666; cursor:not-allowed; }
@@ -43,7 +43,7 @@
       100% { transform: scale(1); }
     }
 
-    .emoji-btn.clicked-animation, .yes-no-btn.clicked-animation { /* MODIFIED */
+    .emoji-btn.clicked-animation, .yes-no-btn.clicked-animation {
         animation: emoji-pop 0.4s ease-in-out;
     }
 
@@ -109,8 +109,8 @@
         background: #f0f0f0;
         cursor: pointer;
         font-weight: bold;
-        font-size: 18px; /* MODIFIED */
-        transition: transform 0.2s; /* MODIFIED */
+        font-size: 18px; 
+        transition: transform 0.2s;
     }
     .yes-no-btn.selected {
         background: #2196F3;
@@ -121,12 +121,34 @@
         cursor: not-allowed;
         opacity: 0.7;
     }
+
+    /* Flying Emoji Animation Styles */
+    @keyframes fly-across {
+        from {
+            transform: translate(0, 0);
+            opacity: 1;
+        }
+        to {
+            transform: translate(var(--end-x), var(--end-y));
+            opacity: 0;
+        }
+    }
+    .flying-emoji {
+        position: fixed;
+        z-index: 9999;
+        font-size: 24px;
+        pointer-events: none;
+        animation-name: fly-across;
+        animation-timing-function: cubic-bezier(0.17, 0.84, 0.44, 1);
+        animation-fill-mode: forwards;
+    }
+
   </style>
 </head>
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-  Version 0.3.0
+  Version 0.4.0
 </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -301,6 +323,41 @@
     }
 
     // --- EMOJI LOGIC ---
+
+    // Function to create the flying emoji effect
+    function createFlyingEmojis(targetButton) {
+        const rect = targetButton.getBoundingClientRect();
+        const emojiChar = targetButton.dataset.emoji;
+        const particleCount = 15; // Number of emojis to fly out
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('span');
+            particle.classList.add('flying-emoji');
+            particle.innerHTML = emojiChar;
+
+            const startX = rect.left + rect.width / 2;
+            const startY = rect.top + rect.height / 2;
+            
+            particle.style.left = `${startX}px`;
+            particle.style.top = `${startY}px`;
+
+            const endX = (Math.random() - 0.5) * 2 * window.innerWidth;
+            const endY = (Math.random() - 0.5) * 2 * window.innerHeight;
+            const duration = Math.random() * 1.5 + 1; // 1 to 2.5 seconds
+
+            particle.style.setProperty('--end-x', `${endX}px`);
+            particle.style.setProperty('--end-y', `${endY}px`);
+            particle.style.animationDuration = `${duration}s`;
+
+            document.body.appendChild(particle);
+
+            setTimeout(() => {
+                particle.remove();
+            }, duration * 1000);
+        }
+    }
+
+
     async function loadEmojiResults() {
       const snap = await db.collection('emojiReactions').get();
       const counts = {};
@@ -317,16 +374,24 @@
         });
       }
     }
+
+    // MODIFIED
     async function handleEmojiClick(e) {
       const clickedButton = e.currentTarget;
-      clickedButton.classList.add('clicked-animation');
-      clickedButton.addEventListener('animationend', () => clickedButton.classList.remove('clicked-animation'), { once: true });
       const doc = await db.collection('emojiReactions').doc(userId).get();
-      if (doc.exists) return;
+      if (doc.exists) return; // User has already voted, do nothing.
+
+      // Trigger animations on a successful click
+      createFlyingEmojis(clickedButton); // The new flying effect
+      clickedButton.classList.add('clicked-animation'); // The pop effect
+      clickedButton.addEventListener('animationend', () => clickedButton.classList.remove('clicked-animation'), { once: true });
+      
       await db.collection('emojiReactions').doc(userId).set({
         emoji: clickedButton.dataset.emoji,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
+
+      // Update counts and UI state after submission
       loadEmojiResults();
       checkIfReacted();
     }
@@ -406,10 +471,8 @@
         }
     }
 
-    // MODIFIED
     async function handleYesNoClick(e) {
         const clickedButton = e.currentTarget;
-        // Add animation
         clickedButton.classList.add('clicked-animation');
         clickedButton.addEventListener('animationend', () => {
             clickedButton.classList.remove('clicked-animation');
@@ -418,7 +481,7 @@
         const choice = clickedButton.dataset.choice;
         const voteRef = db.collection('yesNoVotes').doc(userId);
         const userVoteDoc = await voteRef.get();
-        if (userVoteDoc.exists) return; // Already voted
+        if (userVoteDoc.exists) return; 
 
         const countsRef = db.collection('settings').doc('yesNoCounts');
         try {
@@ -432,7 +495,7 @@
                 transaction.set(voteRef, { choice, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
                 transaction.set(countsRef, newCounts, { merge: true });
             });
-            checkIfYesNoVoted(); // Update UI for this user
+            checkIfYesNoVoted(); 
         } catch (error) {
             console.error("Yes/No vote transaction failed: ", error);
             alert("Your vote could not be cast. Please try again.");
