@@ -95,18 +95,15 @@
         color: #555;
     }
 
-    /* Yes/No Survey Styles -- MODIFIED */
+    /* Yes/No Survey Styles */
     #yes-no-survey-container {
         margin-top: 25px; 
     }
     .yes-no-btn {
-        /* Removed box properties */
         background: none;
         border: none;
         padding: 8px;
-        border-radius: 6px; /* For hover effect */
-
-        /* Kept interactive properties */
+        border-radius: 6px; 
         margin: 5px;
         cursor: pointer;
         font-weight: bold;
@@ -116,7 +113,7 @@
         align-items: center;
     }
     .yes-no-btn:not([disabled]):hover {
-        background-color: #f0f0f0; /* Subtle hover effect */
+        background-color: #f0f0f0; 
     }
     .yes-no-btn .icon {
         display: inline-block;
@@ -125,18 +122,18 @@
         font-size: 20px;
     }
     .yes-no-btn.selected {
-        color: #2196F3; /* Make selected text blue */
-        background: none; /* Ensure no background when selected */
+        color: #4CAF50; /* MODIFIED - Changed color to green */
+        background: none; 
     }
     .yes-no-btn.selected:hover {
-        background: none; /* No hover effect when selected */
+        background: none; 
     }
     .yes-no-btn[disabled] {
         cursor: not-allowed;
         opacity: 0.7;
     }
     .yes-no-btn[disabled]:hover {
-        background: none; /* No hover effect when disabled */
+        background: none;
     }
 
 
@@ -166,7 +163,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-  Version 0.6.0
+  Version 0.7.0
 </div>
   <img src="RInew.jpg" width="350" height="165" />
 
