@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Dynamic Survey with Admin Control + Emoji Reactions</title>
 
-  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -331,7 +329,6 @@
         <label><input type="checkbox" id="results-visibility-toggle" checked/> <strong>Show Raw Results</strong></label>
         <span class="status-text" id="results-status"></span>
       </div>
-      <!-- NEW: Toggles for Top Students and My Score containers -->
       <div id="top-students-toggle-container">
         <label><input type="checkbox" id="top-students-visibility-toggle" checked/> <strong>Show Top Students</strong></label>
         <span class="status-text" id="top-students-status"></span>
@@ -346,14 +343,12 @@
         <button id="update-item-count" class="btn">Update</button>
         <span class="status-text" id="questions-count-status"></span>
       </div>
-      <!-- NEW: Controls for the Top Students leaderboard count -->
       <div id="top-students-count-container">
         <label><strong>Top Students to Show:</strong></label>
         <input type="number" id="top-students-count-input" min="1" max="50" value="10" style="width: 50px;"/>
         <button id="update-top-students-count" class="btn">Update</button>
         <span class="status-text" id="top-students-count-status"></span>
       </div>
-      <!-- NEW: Button to generate 10 users -->
       <button id="generate-users-btn" class="btn">Generate 10 Users</button>
     </div>
   </div>
@@ -398,9 +393,12 @@
 
   <div id="results" class="container-box"></div>
   <div id="results-summary" class="container-box"></div>
-  <!-- NEW: Containers for Top 10 Students and My Score -->
   <div id="top-students-container" class="container-box"></div>
   <div id="my-score-container" class="container-box"></div>
+
+  <div id="download-container" class="container-box" style="text-align: center; display: none;">
+      <button id="download-excel-btn" class="btn">Download Results as Excel (CSV)</button>
+  </div>
 
 
   <script>
@@ -563,9 +561,9 @@
         const correctVotes = itemCounts[correctAnswer] || 0;
         const wrongVotes = totalVotes - correctVotes;
         
-        summaryData.push({ questionNumber: i, wrongCount: wrongVotes });
+        summaryData.push({ questionNumber: i, wrongVotes: wrongVotes });
       }
-      summaryData.sort((a, b) => b.wrongCount - a.wrongCount);
+      summaryData.sort((a, b) => b.wrongVotes - a.wrongVotes);
 
       let summaryHtml = '<h3>Ranking of Questions by Incorrect Answers:</h3>';
       if (summaryData.length === 0 || !answerKeyDoc.exists) {
@@ -732,6 +730,90 @@
         }
     }
 
+    // NEW: Function to download results as a CSV file
+    async function downloadResultsAsCSV() {
+        if (!isAdmin) {
+            alert('This feature is for admins only.');
+            return;
+        }
+
+        try {
+            const responsesSnap = await db.collection('responses').get();
+            const answerKeyDoc = await db.collection('settings').doc('answerKey').get();
+            const surveySettingsDoc = await db.collection('settings').doc('surveySettings').get();
+
+            if (!answerKeyDoc.exists() || Object.keys(answerKeyDoc.data()).length === 0) {
+                alert('Cannot generate report. An answer key must be set first.');
+                return;
+            }
+
+            const answerKey = answerKeyDoc.data();
+            const numQuestions = surveySettingsDoc.exists ? surveySettingsDoc.data().visibleItems : Object.keys(answerKey).length;
+
+            let studentData = [];
+            responsesSnap.forEach(doc => {
+                const response = doc.data();
+                const userAnswers = response.answers || {};
+                let score = 0;
+
+                for (let i = 1; i <= numQuestions; i++) {
+                    const itemKey = 'item' + i;
+                    if (answerKey[itemKey] && userAnswers[itemKey] === answerKey[itemKey]) {
+                        score++;
+                    }
+                }
+                studentData.push({
+                    name: response.name,
+                    score: score,
+                    answers: userAnswers
+                });
+            });
+
+            studentData.sort((a, b) => b.score - a.score);
+
+            const headers = ["Rank", "Name", "Total Score"];
+            for (let i = 1; i <= numQuestions; i++) {
+                headers.push(`Item ${i}`);
+            }
+            let csvRows = [headers.join(",")];
+
+            studentData.forEach((student, index) => {
+                const rank = index + 1;
+                const name = `"${student.name.replace(/"/g, '""')}"`;
+                const row = [rank, name, student.score];
+
+                for (let i = 1; i <= numQuestions; i++) {
+                    const itemKey = 'item' + i;
+                    const userAnswer = student.answers[itemKey] || "N/A";
+                    const correctAnswer = answerKey[itemKey];
+                    let cellValue = userAnswer;
+
+                    if (userAnswer !== "N/A" && correctAnswer) {
+                        const isCorrect = userAnswer === correctAnswer;
+                        cellValue = `${userAnswer} (${isCorrect ? 'Correct' : 'Wrong'})`;
+                    }
+                    row.push(`"${cellValue}"`);
+                }
+                csvRows.push(row.join(","));
+            });
+
+            const csvString = csvRows.join("\r\n");
+            const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "student_scores.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+        } catch (error) {
+            console.error("Error downloading CSV:", error);
+            alert("Failed to download results. See console for details.");
+        }
+    }
+
 
     function createFlyingEmojis(targetButton) {
       const rect = targetButton.getBoundingClientRect(); const emojiChar = targetButton.dataset.emoji; const particleCount = 15; 
@@ -876,6 +958,8 @@
     document.getElementById('top-students-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ topStudentsVisible: e.target.checked }, { merge: true }); });
     document.getElementById('my-score-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ userScoreVisible: e.target.checked }, { merge: true }); });
     document.getElementById('generate-users-btn').addEventListener('click', async () => { await generateTestUsers(10); showAggregatedResults(); });
+    // NEW: Event listener for the download button
+    document.getElementById('download-excel-btn').addEventListener('click', downloadResultsAsCSV);
 
     document.getElementById('reset-btn').addEventListener('click', () => resetData('responses', 'Delete all question data?'));
     document.getElementById('reset-emoji-btn').addEventListener('click', () => { resetData('emojiReactions', 'Delete all emoji reactions?').then(loadEmojiResults); });
@@ -923,6 +1007,8 @@
       } else { document.getElementById('login-message').innerText = ''; }
       isAdmin = newIsAdmin;
       adminPanel.style.display = isAdmin ? 'block' : 'none';
+      // NEW: Control visibility of the download button container
+      document.getElementById('download-container').style.display = isAdmin ? 'block' : 'none';
       document.getElementById('login-btn').style.display = isAdmin ? 'none' : 'inline';
       document.getElementById('logout-btn').style.display = isAdmin ? 'inline' : 'none';
       document.querySelectorAll('.admin-key-input-container').forEach(input => { input.style.display = isAdmin ? 'flex' : 'none'; });
@@ -1018,11 +1104,11 @@
       });
 
       db.collection('settings').doc('answerKey').onSnapshot(doc => {
-        if (isAdmin) {
-          const answerKeyData = doc.exists ? doc.data() : {};
+        if (isAdmin && doc.exists()) {
+          const answerKeyData = doc.data();
           document.querySelectorAll('.answer-key-input').forEach(input => {
             const itemKey = 'item' + input.dataset.item;
-            if (document.activeElement !== input) { input.value = keyData[itemKey] || ''; }
+            if (document.activeElement !== input) { input.value = answerKeyData[itemKey] || ''; }
           });
         }
         showAggregatedResults();
