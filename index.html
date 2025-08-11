@@ -197,7 +197,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-    Version 1.0.6
+    Version 1.0.7
   </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -246,6 +246,8 @@
         <input type="number" id="item-count-input" min="0" max="100" value="5" style="width: 50px;"/>
         <button id="update-item-count">Update</button>
       </div>
+      <!-- NEW: Button to generate 10 users -->
+      <button id="generate-users-btn">Generate 10 Users</button>
     </div>
   </div>
 
@@ -521,6 +523,31 @@
         container.innerHTML = summaryHtml;
     }
 
+    // NEW: Function to generate test users
+    async function generateTestUsers(numUsers) {
+      if (!isAdmin) {
+        return;
+      }
+      
+      const settingsDoc = await db.collection('settings').doc('surveySettings').get();
+      const visibleItems = (settingsDoc.exists && settingsDoc.data().visibleItems) || 5;
+      const letters = ['A', 'B', 'C', 'D'];
+      const batches = [];
+
+      for (let i = 0; i < numUsers; i++) {
+        const userRef = db.collection('responses').doc('test_user_' + Date.now() + i);
+        const userName = 'Test User ' + (i + 1);
+        const answers = {};
+        for (let j = 1; j <= visibleItems; j++) {
+          answers['item' + j] = letters[Math.floor(Math.random() * letters.length)];
+        }
+        batches.push(userRef.set({ name: userName, answers, timestamp: firebase.firestore.FieldValue.serverTimestamp() }));
+      }
+      
+      await Promise.all(batches);
+      alert(`${numUsers} test users generated.`);
+    }
+
     // --- (All other feature sections like EMOJI, STAR RATING, YES/NO are unchanged) ---
     function createFlyingEmojis(targetButton) {
       const rect = targetButton.getBoundingClientRect(); const emojiChar = targetButton.dataset.emoji; const particleCount = 15; 
@@ -667,9 +694,9 @@
     document.getElementById('yes-no-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('yesNoSettings').set({ visible: e.target.checked }, { merge: true }); }); 
     document.getElementById('summary-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ visible: e.target.checked }, { merge: true }); });
     document.getElementById('results-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('resultsSettings').set({ visible: e.target.checked }, { merge: true }); });
-    // NEW: Listeners for the new toggles
     document.getElementById('top-students-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ topStudentsVisible: e.target.checked }, { merge: true }); });
     document.getElementById('my-score-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ userScoreVisible: e.target.checked }, { merge: true }); });
+    document.getElementById('generate-users-btn').addEventListener('click', async () => { await generateTestUsers(10); showAggregatedResults(); });
 
     document.getElementById('reset-btn').addEventListener('click', () => resetData('responses', 'Delete all question data?'));
     document.getElementById('reset-emoji-btn').addEventListener('click', () => { resetData('emojiReactions', 'Delete all emoji reactions?').then(loadEmojiResults); });
@@ -778,7 +805,6 @@
         document.getElementById('results-summary').style.display = isVisible ? 'block' : 'none';
         if (isAdmin) { document.getElementById('summary-visibility-toggle').checked = isVisible; }
         
-        // NEW: Realtime listeners for the new summary containers
         const topStudentsVisible = doc.exists && doc.data().topStudentsVisible === true;
         document.getElementById('top-students-container').style.display = topStudentsVisible ? 'block' : 'none';
         if (isAdmin) { document.getElementById('top-students-visibility-toggle').checked = topStudentsVisible; }
