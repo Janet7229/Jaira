@@ -742,7 +742,7 @@
             const answerKeyDoc = await db.collection('settings').doc('answerKey').get();
             const surveySettingsDoc = await db.collection('settings').doc('surveySettings').get();
 
-            if (!answerKeyDoc.exists() || Object.keys(answerKeyDoc.data()).length === 0) {
+            if (!answerKeyDoc.exists || Object.keys(answerKeyDoc.data()).length === 0) {
                 alert('Cannot generate report. An answer key must be set first.');
                 return;
             }
@@ -1100,7 +1100,7 @@
       });
 
       db.collection('settings').doc('answerKey').onSnapshot(doc => {
-        if (isAdmin && doc.exists()) {
+        if (isAdmin && doc.exists) {
           const answerKeyData = doc.data();
           document.querySelectorAll('.answer-key-input').forEach(input => {
             const itemKey = 'item' + input.dataset.item;
