@@ -197,7 +197,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-    Version 1.0.8
+    Version 1.0.9
   </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -245,6 +245,12 @@
         <label><strong>Questions to Show:</strong></label>
         <input type="number" id="item-count-input" min="0" max="100" value="5" style="width: 50px;"/>
         <button id="update-item-count">Update</button>
+      </div>
+      <!-- NEW: Controls for the Top Students leaderboard count -->
+      <div id="top-students-count-container">
+        <label><strong>Top Students to Show:</strong></label>
+        <input type="number" id="top-students-count-input" min="1" max="50" value="10" style="width: 50px;"/>
+        <button id="update-top-students-count">Update</button>
       </div>
       <!-- NEW: Button to generate 10 users -->
       <button id="generate-users-btn">Generate 10 Users</button>
@@ -449,11 +455,11 @@
       showMyScore(answerKeyData);
     }
 
-    // NEW: Function to show top 10 students
+    // UPDATED: Function to show top students with new display logic
     async function showTopStudentsResults(snapshot, answerKey) {
         const container = document.getElementById('top-students-container');
         if (!answerKey || Object.keys(answerKey).length === 0) {
-            container.innerHTML = '<h3>Top 10 Students</h3><p>An answer key must be set to display student scores.</p>';
+            container.innerHTML = '<h3>Top Students</h3><p>An answer key must be set to display student scores.</p>';
             return;
         }
 
@@ -472,11 +478,14 @@
         });
 
         scores.sort((a, b) => b.score - a.score);
-        const top10 = scores.slice(0, 10);
+        
+        const topStudentsCountDoc = await db.collection('settings').doc('topStudentsCount').get();
+        const topN = (topStudentsCountDoc.exists && topStudentsCountDoc.data().count) ? topStudentsCountDoc.data().count : 10;
+        const topStudents = scores.slice(0, topN);
 
-        let html = '<h3>Top 10 Students</h3><ol>';
-        top10.forEach((student, index) => {
-            // UPDATED: Changed the display from `#1` to `Rank #1`
+        let html = `<h3>Top ${topN} Students</h3><ol>`;
+        topStudents.forEach((student, index) => {
+            // UPDATED: Removed the number before the rank
             html += `<li>Rank #${index + 1}: ${student.name} - Score: ${student.score}</li>`;
         });
         html += '</ol>';
@@ -661,6 +670,14 @@
       alert(`Visible items updated to ${count}`);
     });
     
+    // NEW: Listener for the new top students count update button
+    document.getElementById('update-top-students-count').addEventListener('click', async () => {
+      const count = parseInt(document.getElementById('top-students-count-input').value, 10);
+      if (count < 1 || count > 50) return alert("Enter a number between 1 and 50.");
+      await db.collection('settings').doc('topStudentsCount').set({ count: count }, { merge: true });
+      alert(`Top students count updated to ${count}`);
+    });
+    
     document.getElementById('save-keys-btn').addEventListener('click', async () => {
       if (!isAdmin) return;
       const answerKey = {}; const validLetters = ['A', 'B', 'C', 'D', '']; let allValid = true;
@@ -813,6 +830,13 @@
         const userScoreVisible = doc.exists && doc.data().userScoreVisible === true;
         document.getElementById('my-score-container').style.display = userScoreVisible ? 'block' : 'none';
         if (isAdmin) { document.getElementById('my-score-visibility-toggle').checked = userScoreVisible; }
+      });
+      
+      // NEW: Listener for top students count setting
+      db.collection('settings').doc('topStudentsCount').onSnapshot(doc => {
+        const count = (doc.exists && doc.data().count) ? doc.data().count : 10;
+        if (isAdmin) { document.getElementById('top-students-count-input').value = count; }
+        showAggregatedResults();
       });
 
       db.collection('settings').doc('resultsSettings').onSnapshot(doc => {
