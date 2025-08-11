@@ -278,7 +278,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: #ffeb3b; padding: 5px; margin-bottom: 10px; border-radius: 8px;">
-    Version 1.0.17
+    Version 1.0.19
   </div>
   <div class="container-box">
     <img src="RInew.jpg" width="350" height="165" style="display: block; margin: auto;"/>
@@ -817,7 +817,7 @@
     document.getElementById('emoji-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('emojiSettings').set({ visible: e.target.checked }, { merge: true }); });
     document.getElementById('star-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('starRatingControl').set({ visible: e.target.checked }, { merge: true }); });
     document.getElementById('yes-no-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('yesNoSettings').set({ visible: e.target.checked }, { merge: true }); }); 
-    document.getElementById('summary-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ visible: e.target.checked }, { merge: true }); });
+    document.getElementById('summary-toggle-container').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ visible: e.target.checked }, { merge: true }); });
     document.getElementById('results-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('resultsSettings').set({ visible: e.target.checked }, { merge: true }); });
     document.getElementById('top-students-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ topStudentsVisible: e.target.checked }, { merge: true }); });
     document.getElementById('my-score-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ userScoreVisible: e.target.checked }, { merge: true }); });
@@ -910,25 +910,25 @@
         if (isAdmin) { document.getElementById('item-count-input').value = count; }
       });
 
+      // UPDATED: Realtime listener for emoji visibility setting
       db.collection('settings').doc('emojiSettings').onSnapshot(doc => {
         const visible = doc.exists && doc.data().visible;
-        // NEW: If admin, always show the container, otherwise follow the Firestore setting
         document.getElementById('emoji-container').style.display = (isAdmin || visible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('emoji-visibility-toggle').checked = !!visible; }
         document.getElementById('emoji-status').innerText = visible ? 'ON' : 'OFF';
       });
 
+      // UPDATED: Realtime listener for star rating visibility setting
       db.collection('settings').doc('starRatingControl').onSnapshot(doc => {
         const visible = doc.exists && doc.data().visible;
-        // NEW: If admin, always show the container, otherwise follow the Firestore setting
         document.getElementById('star-rating-container').style.display = (isAdmin || visible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('star-visibility-toggle').checked = !!visible; }
         document.getElementById('star-status').innerText = visible ? 'ON' : 'OFF';
       });
       
+      // UPDATED: Realtime listener for yes/no survey visibility setting
       db.collection('settings').doc('yesNoSettings').onSnapshot(doc => {
         const visible = doc.exists && doc.data().visible;
-        // NEW: If admin, always show the container, otherwise follow the Firestore setting
         document.getElementById('yes-no-survey-container').style.display = (isAdmin || visible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('yes-no-visibility-toggle').checked = !!visible; }
         document.getElementById('yes-no-status').innerText = visible ? 'ON' : 'OFF';
@@ -939,23 +939,19 @@
         const topStudentsVisible = doc.exists && doc.data().topStudentsVisible === true;
         const userScoreVisible = doc.exists && doc.data().userScoreVisible === true;
         
-        // NEW: If admin, always show the container, otherwise follow the Firestore setting
         document.getElementById('results-summary').style.display = (isAdmin || isVisible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('summary-visibility-toggle').checked = isVisible; }
         document.getElementById('summary-status').innerText = isVisible ? 'ON' : 'OFF';
         
-        // NEW: If admin, always show the container, otherwise follow the Firestore setting
         document.getElementById('top-students-container').style.display = (isAdmin || topStudentsVisible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('top-students-visibility-toggle').checked = topStudentsVisible; }
         document.getElementById('top-students-status').innerText = topStudentsVisible ? 'ON' : 'OFF';
 
-        // NEW: If admin, always show the container, otherwise follow the Firestore setting
         document.getElementById('my-score-container').style.display = (isAdmin || userScoreVisible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('my-score-visibility-toggle').checked = userScoreVisible; }
         document.getElementById('my-score-status').innerText = userScoreVisible ? 'ON' : 'OFF';
       });
       
-      // NEW: Listener for top students count setting
       db.collection('settings').doc('topStudentsCount').onSnapshot(doc => {
         const count = (doc.exists && doc.data().count) ? doc.data().count : 10;
         if (isAdmin) { document.getElementById('top-students-count-input').value = count; }
@@ -965,7 +961,6 @@
 
       db.collection('settings').doc('resultsSettings').onSnapshot(doc => {
         const isVisible = doc.exists && doc.data().visible === true;
-        // NEW: If admin, always show the container, otherwise follow the Firestore setting
         document.getElementById('results').style.display = (isAdmin || isVisible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('results-visibility-toggle').checked = isVisible; }
         document.getElementById('results-status').innerText = isVisible ? 'ON' : 'OFF';
