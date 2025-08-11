@@ -195,8 +195,8 @@
       list-style: none; /* Remove default list bullets */
       padding-left: 0;
     }
-    #my-score-container ol {
-      list-style-type: none;
+    #my-score-container ul { /* Changed from OL to UL */
+      list-style: none;
       padding-left: 0;
     }
     .correct-icon { color: green; font-weight: bold; }
@@ -207,7 +207,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-    Version 1.0.14
+    Version 1.0.15
   </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -837,38 +837,45 @@
 
       db.collection('settings').doc('emojiSettings').onSnapshot(doc => {
         const visible = doc.exists && doc.data().visible;
-        document.getElementById('emoji-container').style.display = visible ? 'block' : 'none';
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('emoji-container').style.display = (isAdmin || visible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('emoji-visibility-toggle').checked = !!visible; }
         document.getElementById('emoji-status').innerText = visible ? 'ON' : 'OFF';
       });
 
       db.collection('settings').doc('starRatingControl').onSnapshot(doc => {
         const visible = doc.exists && doc.data().visible;
-        document.getElementById('star-rating-container').style.display = visible ? 'block' : 'none';
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('star-rating-container').style.display = (isAdmin || visible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('star-visibility-toggle').checked = !!visible; }
         document.getElementById('star-status').innerText = visible ? 'ON' : 'OFF';
       });
       
       db.collection('settings').doc('yesNoSettings').onSnapshot(doc => {
         const visible = doc.exists && doc.data().visible;
-        document.getElementById('yes-no-survey-container').style.display = visible ? 'block' : 'none';
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('yes-no-survey-container').style.display = (isAdmin || visible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('yes-no-visibility-toggle').checked = !!visible; }
         document.getElementById('yes-no-status').innerText = visible ? 'ON' : 'OFF';
       });
 
       db.collection('settings').doc('summarySettings').onSnapshot(doc => {
         const isVisible = doc.exists && doc.data().visible === true;
-        document.getElementById('results-summary').style.display = isVisible ? 'block' : 'none';
+        const topStudentsVisible = doc.exists && doc.data().topStudentsVisible === true;
+        const userScoreVisible = doc.exists && doc.data().userScoreVisible === true;
+        
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('results-summary').style.display = (isAdmin || isVisible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('summary-visibility-toggle').checked = isVisible; }
         document.getElementById('summary-status').innerText = isVisible ? 'ON' : 'OFF';
         
-        const topStudentsVisible = doc.exists && doc.data().topStudentsVisible === true;
-        document.getElementById('top-students-container').style.display = topStudentsVisible ? 'block' : 'none';
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('top-students-container').style.display = (isAdmin || topStudentsVisible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('top-students-visibility-toggle').checked = topStudentsVisible; }
         document.getElementById('top-students-status').innerText = topStudentsVisible ? 'ON' : 'OFF';
 
-        const userScoreVisible = doc.exists && doc.data().userScoreVisible === true;
-        document.getElementById('my-score-container').style.display = userScoreVisible ? 'block' : 'none';
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('my-score-container').style.display = (isAdmin || userScoreVisible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('my-score-visibility-toggle').checked = userScoreVisible; }
         document.getElementById('my-score-status').innerText = userScoreVisible ? 'ON' : 'OFF';
       });
@@ -883,7 +890,8 @@
 
       db.collection('settings').doc('resultsSettings').onSnapshot(doc => {
         const isVisible = doc.exists && doc.data().visible === true;
-        document.getElementById('results').style.display = isVisible ? 'block' : 'none';
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('results').style.display = (isAdmin || isVisible) ? 'block' : 'none';
         if (isAdmin) { document.getElementById('results-visibility-toggle').checked = isVisible; }
         document.getElementById('results-status').innerText = isVisible ? 'ON' : 'OFF';
       });
