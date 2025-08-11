@@ -63,9 +63,17 @@
         font-family:monospace; 
     }
     .bar { color:#4CAF50; }
-    .highlight { color:#ffc107; font-weight:bold; }
+    /* REMOVED: color from .highlight class */
+    .highlight { font-weight:bold; }
     .line { border-top:1px solid #e0e0e0; margin:15px 0; }
     .question-title { color: #388e3c; font-weight: bold; font-size: 1.1em; margin-bottom: 10px; }
+    .admin-key-input-container {
+      display: flex;
+      align-items: center;
+    }
+    .admin-key-input-container input {
+      margin-right: 5px;
+    }
 
     .emoji-btn {
       font-size: 28px;
@@ -278,7 +286,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: #ffeb3b; padding: 5px; margin-bottom: 10px; border-radius: 8px;">
-    Version 1.0.19
+    Version 1.0.20
   </div>
   <div class="container-box">
     <img src="RInew.jpg" width="350" height="165" style="display: block; margin: auto;"/>
@@ -384,7 +392,8 @@
   
   <input type="text" id="name-input" placeholder="Your Name" required />
   <button id="submit-btn" class="btn">Submit</button>
-  <button id="save-keys-btn" class="btn">Save Answer Key</button>
+  <!-- REMOVED: Global save button -->
+  <!-- <button id="save-keys-btn" class="btn">Save Answer Key</button> -->
 
   <div id="results" class="container-box"></div>
   <div id="results-summary" class="container-box"></div>
@@ -458,11 +467,15 @@
         const div = document.createElement('div');
         div.className = 'survey-item';
         div.dataset.item = i;
-        const inputStyle = isAdmin ? 'inline-block' : 'none';
+        const inputStyle = isAdmin ? 'flex' : 'none';
+        // UPDATED: Added a 'Save' button next to each input
         div.innerHTML = `<div class="question-title">Question #${i}</div>
           <button class="btn" data-letter="A">A</button> <button class="btn" data-letter="B">B</button>
           <button class="btn" data-letter="C">C</button> <button class="btn" data-letter="D">D</button>
-          <input type="text" class="answer-key-input" data-item="${i}" placeholder="Key" style="display: ${inputStyle};" maxlength="1">`;
+          <span class="admin-key-input-container" style="display: ${inputStyle};">
+            <input type="text" class="answer-key-input" data-item="${i}" placeholder="Key" maxlength="1">
+            <button class="btn save-key-btn" data-item="${i}">Save</button>
+          </span>`;
         container.appendChild(div);
       }
       document.querySelectorAll('.survey-item .btn').forEach(btn => {
@@ -471,6 +484,23 @@
           e.target.classList.add('selected');
         });
       });
+      if (isAdmin) {
+        // UPDATED: Add listener for individual save buttons
+        document.querySelectorAll('.save-key-btn').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const item = 'item' + e.target.dataset.item;
+            const input = document.querySelector(`.answer-key-input[data-item="${e.target.dataset.item}"]`);
+            const value = input.value.trim().toUpperCase();
+            if (!['A', 'B', 'C', 'D', ''].includes(value)) {
+              alert(`Invalid answer '${value}'. Please use only A, B, C, or D.`);
+              return;
+            }
+            const docRef = db.collection('settings').doc('answerKey');
+            await docRef.set({ [item]: value }, { merge: true });
+            alert(`Answer key for Question #${e.target.dataset.item} saved!`);
+          });
+        });
+      }
     }
     
     async function showAggregatedResults() {
@@ -785,23 +815,7 @@
       alert(`Top students count updated to ${count}`);
     });
     
-    document.getElementById('save-keys-btn').addEventListener('click', async () => {
-      if (!isAdmin) return;
-      const answerKey = {}; const validLetters = ['A', 'B', 'C', 'D', '']; let allValid = true;
-      document.querySelectorAll('.answer-key-input').forEach(input => {
-        const item = 'item' + input.dataset.item; const value = input.value.trim().toUpperCase();
-        if (!validLetters.includes(value)) {
-          allValid = false; alert(`Invalid answer '${input.value}' for Question #${input.dataset.item}. Please use only A, B, C, or D.`);
-          input.focus();
-        }
-        answerKey[item] = value;
-      });
-      if (!allValid) return;
-      try {
-        await db.collection('settings').doc('answerKey').set(answerKey);
-        alert('Answer key saved successfully!'); showAggregatedResults();
-      } catch (e) { console.error('Error saving answer key:', e); alert('Failed to save answer key.'); }
-    });
+    // REMOVED: Global save button listener
 
     document.getElementById('reset-keys-btn').addEventListener('click', async () => {
       if (!isAdmin) return;
@@ -871,8 +885,9 @@
       adminPanel.style.display = isAdmin ? 'block' : 'none';
       document.getElementById('login-btn').style.display = isAdmin ? 'none' : 'inline';
       document.getElementById('logout-btn').style.display = isAdmin ? 'inline' : 'none';
-      document.querySelectorAll('.answer-key-input').forEach(input => { input.style.display = isAdmin ? 'inline-block' : 'none'; });
-      document.getElementById('save-keys-btn').style.display = isAdmin ? 'inline-block' : 'none';
+      document.querySelectorAll('.admin-key-input-container').forEach(input => { input.style.display = isAdmin ? 'flex' : 'none'; });
+      // REMOVED: Global save button
+      // document.getElementById('save-keys-btn').style.display = isAdmin ? 'inline-block' : 'none';
       if (isAdmin) {
         const keyDoc = await db.collection('settings').doc('answerKey').get();
         if (keyDoc.exists) {
