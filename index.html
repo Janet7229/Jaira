@@ -166,12 +166,18 @@
     #results-summary ol { padding-left: 20px; }
     #results-summary li { margin-bottom: 8px; }
 
+    /* New style for the bold, red letter in the raw results */
+    .result-letter {
+      font-weight: bold;
+      color: red;
+    }
+
   </style>
 </head>
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-    Version 1.0.2
+    Version 1.0.3
   </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -189,7 +195,7 @@
       <button id="reset-emoji-btn">Reset Emoji Counts</button>
       <button id="reset-stars-btn">Reset Star Ratings</button>
       <button id="reset-yes-no-btn">Reset Yes/No Survey</button> 
-      <button id="save-keys-btn">Save Answer Key</button>
+      <!-- Moved from here -->
       <button id="reset-keys-btn">Reset Answer Key</button>
       <div id="global-toggle-container">
         <label><input type="checkbox" id="global-toggle"/> <strong>Enable Submissions</strong></label>
@@ -252,6 +258,8 @@
   
   <input type="text" id="name-input" placeholder="Your Name" required />
   <button id="submit-btn">Submit</button>
+  <!-- NEW: The Save Answer Key button is now next to the submit button, but still only visible to admins -->
+  <button id="save-keys-btn">Save Answer Key</button>
 
   <div id="results"></div>
   <div id="results-summary"></div>
@@ -357,7 +365,8 @@
         html += `Item ${i}:\n`;
         Object.entries(itm).forEach(([ltr, cnt]) => {
           const bar = `<span class="bar">${'█'.repeat((cnt / max) * 20)}</span>`;
-          let disp = ltr;
+          // MODIFIED: Make the letter bold and red
+          let disp = `<span class="result-letter">${ltr}</span>`;
           if (cnt === m && cnt > 0) { disp = `<span class="highlight">${ltr}</span>`; }
           if (ltr === correctAnswer) { disp += ' ✅'; }
           html += `  ${disp}: ${cnt} ${bar}\n`;
@@ -538,7 +547,6 @@
     document.getElementById('star-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('starRatingControl').set({ visible: e.target.checked }, { merge: true }); });
     document.getElementById('yes-no-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('yesNoSettings').set({ visible: e.target.checked }, { merge: true }); }); 
     document.getElementById('summary-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ visible: e.target.checked }, { merge: true }); });
-    // NEW: Event listener for the new raw results toggle
     document.getElementById('results-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('resultsSettings').set({ visible: e.target.checked }, { merge: true }); });
     document.getElementById('reset-btn').addEventListener('click', () => resetData('responses', 'Delete all question data?'));
     document.getElementById('reset-emoji-btn').addEventListener('click', () => { resetData('emojiReactions', 'Delete all emoji reactions?').then(loadEmojiResults); });
@@ -588,6 +596,8 @@
       document.getElementById('login-btn').style.display = isAdmin ? 'none' : 'inline';
       document.getElementById('logout-btn').style.display = isAdmin ? 'inline' : 'none';
       document.querySelectorAll('.answer-key-input').forEach(input => { input.style.display = isAdmin ? 'inline-block' : 'none'; });
+      // NEW: Show/hide the Save Answer Key button based on admin status
+      document.getElementById('save-keys-btn').style.display = isAdmin ? 'inline-block' : 'none';
       if (isAdmin) {
         const keyDoc = await db.collection('settings').doc('answerKey').get();
         if (keyDoc.exists) {
@@ -646,7 +656,6 @@
         if (isAdmin) { document.getElementById('summary-visibility-toggle').checked = isVisible; }
       });
 
-      // NEW: Realtime listener for the raw results visibility setting
       db.collection('settings').doc('resultsSettings').onSnapshot(doc => {
         const isVisible = doc.exists && doc.data().visible === true;
         document.getElementById('results').style.display = isVisible ? 'block' : 'none';
