@@ -74,10 +74,11 @@
     #admin-panel div {
       margin-top: 8px;
     }
-    /* NEW: Class for displaying status next to toggles */
+    /* NEW: Class for displaying status next to toggles, now green */
     .status-text {
         font-weight: bold;
         margin-left: 5px;
+        color: green;
     }
 
     /* Star Rating Styles */
@@ -206,7 +207,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-    Version 1.0.12
+    Version 1.0.13
   </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -529,7 +530,7 @@
 
         let score = 0;
         let summaryHtml = '<h3>My Score</h3>';
-        let answerListHtml = '<ol>';
+        let answerListHtml = '<ul>';
 
         Object.keys(answerKey).forEach((itemKey, index) => {
             const questionNumber = index + 1;
@@ -546,7 +547,7 @@
             answerListHtml += `<li>Question #${questionNumber}: Your answer was ${userAnswer || 'N/A'} <span class="${iconClass}">${icon}</span></li>`;
         });
         
-        answerListHtml += '</ol>';
+        answerListHtml += '</ul>';
         summaryHtml += `<p>Your Final Score: <strong>${score}</strong></p>`;
         summaryHtml += `<h4>Answer Summary:</h4>`;
         summaryHtml += answerListHtml;
@@ -812,7 +813,6 @@
         submissionsGloballyEnabled = isEnabled; 
         if (isAdmin) { document.getElementById('global-toggle').checked = isEnabled; }
         document.getElementById('global-status').innerText = isEnabled ? 'ON' : 'OFF';
-        updateSubmitButtonState();
       });
 
       db.collection('settings').doc('surveySettings').onSnapshot(doc => {
