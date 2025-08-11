@@ -285,7 +285,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: #ffeb3b; padding: 5px; margin-bottom: 10px; border-radius: 8px;">
-    Version 1.0.23
+    Version 1.0.24
   </div>
   <div class="container-box">
     <img src="RInew.jpg" width="350" height="165" style="display: block; margin: auto;"/>
@@ -391,17 +391,16 @@
   
   <input type="text" id="name-input" placeholder="Your Name" required />
   <button id="submit-btn" class="btn">Submit</button>
-  <!-- REMOVED: Global save button -->
-  <!-- <button id="save-keys-btn" class="btn">Save Answer Key</button> -->
+  <div id="save-all-keys-container" style="display:none; text-align: center;">
+    <button id="save-all-keys-btn" class="btn">Save All Answer Keys</button>
+  </div>
 
   <div id="results" class="container-box"></div>
   <div id="results-summary" class="container-box"></div>
   <!-- NEW: Containers for Top 10 Students and My Score -->
   <div id="top-students-container" class="container-box"></div>
   <div id="my-score-container" class="container-box"></div>
-  <div id="save-all-keys-container" style="display:none; text-align: center;">
-    <button id="save-all-keys-btn" class="btn">Save All Answer Keys</button>
-  </div>
+
 
   <script>
     const firebaseConfig = {
@@ -440,7 +439,6 @@
     }
 
     async function updateSubmitButtonState() {
-      // Check Firestore to see if user has submitted
       const userDoc = await db.collection('responses').doc(userId).get();
       userHasSubmitted = userDoc.exists;
 
@@ -488,10 +486,9 @@
           e.target.classList.add('selected');
         });
       });
-      // The listener attachment logic has been moved to a new function
+      setupAnswerKeyListeners();
     }
     
-    // NEW: Function to set up the individual save button listeners
     function setupAnswerKeyListeners() {
       if (isAdmin) {
         document.querySelectorAll('.save-key-btn').forEach(btn => {
