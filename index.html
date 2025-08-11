@@ -287,7 +287,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: #ffeb3b; padding: 5px; margin-bottom: 10px; border-radius: 8px;">
-    Version 1.0.26
+    Version 1.0.27
   </div>
   <div class="container-box">
     <img src="RInew.jpg" width="350" height="165" style="display: block; margin: auto;"/>
@@ -934,6 +934,7 @@
           });
         }
       }
+      document.getElementById('save-all-keys-container').style.display = isAdmin ? 'block' : 'none';
       setupAnswerKeyListeners();
     });
     document.getElementById('login-btn').addEventListener('click', () => auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value).catch(e => alert("Login failed: " + e.message)));
@@ -959,7 +960,6 @@
         renderSurveyItems(count);
         document.getElementById('questions-count-status').innerText = count;
         if (isAdmin) { document.getElementById('item-count-input').value = count; }
-        setupAnswerKeyListeners();
       });
 
       db.collection('settings').doc('emojiSettings').onSnapshot(doc => {
