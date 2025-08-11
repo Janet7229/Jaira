@@ -207,7 +207,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-    Version 1.0.13
+    Version 1.0.14
   </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -227,36 +227,36 @@
       <button id="reset-yes-no-btn">Reset Yes/No Survey</button> 
       <button id="reset-keys-btn">Reset Answer Key</button>
       <div id="global-toggle-container">
-        <label><input type="checkbox" id="global-toggle"/> <strong>Enable Submissions</strong></label>
+        <label><input type="checkbox" id="global-toggle" checked/> <strong>Enable Submissions</strong></label>
         <span class="status-text" id="global-status"></span>
       </div>
       <div id="emoji-toggle-container">
-        <label><input type="checkbox" id="emoji-visibility-toggle"/> <strong>Show Emoji Reactions</strong></label>
+        <label><input type="checkbox" id="emoji-visibility-toggle" checked/> <strong>Show Emoji Reactions</strong></label>
         <span class="status-text" id="emoji-status"></span>
       </div>
       <div id="star-toggle-container">
-        <label><input type="checkbox" id="star-visibility-toggle"/> <strong>Show Star Rating</strong></label>
+        <label><input type="checkbox" id="star-visibility-toggle" checked/> <strong>Show Star Rating</strong></label>
         <span class="status-text" id="star-status"></span>
       </div>
       <div id="yes-no-toggle-container">
-        <label><input type="checkbox" id="yes-no-visibility-toggle"/> <strong>Show Yes/No Survey</strong></label>
+        <label><input type="checkbox" id="yes-no-visibility-toggle" checked/> <strong>Show Yes/No Survey</strong></label>
         <span class="status-text" id="yes-no-status"></span>
       </div>
       <div id="summary-toggle-container">
-        <label><input type="checkbox" id="summary-visibility-toggle"/> <strong>Show Results Summary</strong></label>
+        <label><input type="checkbox" id="summary-visibility-toggle" checked/> <strong>Show Results Summary</strong></label>
         <span class="status-text" id="summary-status"></span>
       </div>
       <div id="results-toggle-container">
-        <label><input type="checkbox" id="results-visibility-toggle"/> <strong>Show Raw Results</strong></label>
+        <label><input type="checkbox" id="results-visibility-toggle" checked/> <strong>Show Raw Results</strong></label>
         <span class="status-text" id="results-status"></span>
       </div>
       <!-- NEW: Toggles for Top Students and My Score containers -->
       <div id="top-students-toggle-container">
-        <label><input type="checkbox" id="top-students-visibility-toggle"/> <strong>Show Top Students</strong></label>
+        <label><input type="checkbox" id="top-students-visibility-toggle" checked/> <strong>Show Top Students</strong></label>
         <span class="status-text" id="top-students-status"></span>
       </div>
       <div id="my-score-toggle-container">
-        <label><input type="checkbox" id="my-score-visibility-toggle"/> <strong>Show My Score</strong></label>
+        <label><input type="checkbox" id="my-score-visibility-toggle" checked/> <strong>Show My Score</strong></label>
         <span class="status-text" id="my-score-status"></span>
       </div>
       <div id="item-count-container">
@@ -277,7 +277,7 @@
     </div>
   </div>
 
-  <div id="emoji-container" style="display:none;">
+  <div id="emoji-container">
     <div><strong>React with an emoji:</strong></div>
     <div id="emoji-options">
       <button class="emoji-btn" data-emoji="👍">👍 <span class="count">0</span></button>
@@ -287,7 +287,7 @@
     </div>
   </div>
   
-  <div id="star-rating-container" style="display:none;">
+  <div id="star-rating-container">
     <div><strong>Rate your experience:</strong></div>
     <div id="star-options">
       <span class="star-btn" data-rating="1">&#9734;</span>
@@ -299,7 +299,7 @@
     <div id="star-rating-results">Loading...</div>
   </div>
 
-  <div id="yes-no-survey-container" style="display:none;">
+  <div id="yes-no-survey-container">
     <div><strong>Yes or No?</strong></div>
     <div id="yes-no-options">
       <button class="yes-no-btn" data-choice="yes"><span class="icon">👍</span> Yes <span class="count">0</span></button>
@@ -316,8 +316,8 @@
   <div id="results"></div>
   <div id="results-summary"></div>
   <!-- NEW: Containers for Top 10 Students and My Score -->
-  <div id="top-students-container" style="display:none;"></div>
-  <div id="my-score-container" style="display:none;"></div>
+  <div id="top-students-container"></div>
+  <div id="my-score-container"></div>
 
   <script>
     const firebaseConfig = {
@@ -494,7 +494,7 @@
                     score++;
                 }
             }
-            scores.push({ name: doc.data().name, score: score });
+            scores.push({ name: doc.data().name, score: score, userId: doc.id });
         });
 
         scores.sort((a, b) => b.score - a.score);
@@ -503,14 +503,27 @@
         const topN = (topStudentsCountDoc.exists && topStudentsCountDoc.data().count) ? topStudentsCountDoc.data().count : 10;
         const topStudents = scores.slice(0, topN);
 
-        // MODIFIED: Changed the list from <ol> to <ul> and removed auto-numbering
         let html = `<h3>Top ${topN} Students</h3><ul>`;
         topStudents.forEach((student, index) => {
-            // UPDATED: Removed the number before the rank
-            html += `<li>Rank #${index + 1}: ${student.name} - Score: ${student.score}</li>`;
+            if (isAdmin) {
+                html += `<li>Rank #${index + 1}: <input type="text" value="${student.name}" data-userid="${student.userId}"/> <button data-userid="${student.userId}">Save</button> - Score: ${student.score}</li>`;
+            } else {
+                html += `<li>Rank #${index + 1}: ${student.name} - Score: ${student.score}</li>`;
+            }
         });
         html += '</ul>';
         container.innerHTML = html;
+
+        if (isAdmin) {
+          container.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+              const userId = e.target.dataset.userid;
+              const newName = e.target.previousElementSibling.value;
+              await db.collection('responses').doc(userId).update({ name: newName });
+              alert('Name updated!');
+            });
+          });
+        }
     }
 
     // NEW: Function to show current user's score and answers
