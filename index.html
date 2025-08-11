@@ -385,11 +385,12 @@
 
   <div id="survey-container" class="container-box"></div>
   
-  <input type="text" id="name-input" placeholder="Your Name" required />
-  <button id="submit-btn" class="btn">Submit</button>
-  <div id="save-all-keys-container" style="display:none; text-align: center;">
+  <!-- MOVED: "Save All" button container is now here -->
+  <div id="save-all-keys-container" style="display:none; margin-bottom: 15px;">
     <button id="save-all-keys-btn" class="btn">Save All Answer Keys</button>
   </div>
+  <input type="text" id="name-input" placeholder="Your Name" required />
+  <button id="submit-btn" class="btn">Submit</button>
 
   <div id="results" class="container-box"></div>
   <div id="results-summary" class="container-box"></div>
@@ -730,7 +731,6 @@
         }
     }
 
-    // NEW: Function to download results as a CSV file
     async function downloadResultsAsCSV() {
         if (!isAdmin) {
             alert('This feature is for admins only.');
@@ -926,7 +926,6 @@
       alert(`Visible items updated to ${count}`);
     });
     
-    // NEW: Listener for the new top students count update button
     document.getElementById('update-top-students-count').addEventListener('click', async () => {
       const count = parseInt(document.getElementById('top-students-count-input').value, 10);
       if (count < 1 || count > 50) return alert("Enter a number between 1 and 50.");
@@ -934,8 +933,6 @@
       alert(`Top students count updated to ${count}`);
     });
     
-    // REMOVED: Global save button listener
-
     document.getElementById('reset-keys-btn').addEventListener('click', async () => {
       if (!isAdmin) return;
       if (!confirm('Are you sure you want to reset the entire answer key? This action cannot be undone.')) { return; }
@@ -946,7 +943,6 @@
       } catch (e) { console.error('Error resetting answer key:', e); alert('Failed to reset the answer key.'); }
     });
     
-    // NEW: Global save all button listener
     document.getElementById('save-all-keys-btn').addEventListener('click', saveAllAnswerKeys);
 
     document.getElementById('global-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('submissionControl').set({ enabled: e.target.checked }); });
@@ -958,7 +954,6 @@
     document.getElementById('top-students-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ topStudentsVisible: e.target.checked }, { merge: true }); });
     document.getElementById('my-score-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ userScoreVisible: e.target.checked }, { merge: true }); });
     document.getElementById('generate-users-btn').addEventListener('click', async () => { await generateTestUsers(10); showAggregatedResults(); });
-    // NEW: Event listener for the download button
     document.getElementById('download-excel-btn').addEventListener('click', downloadResultsAsCSV);
 
     document.getElementById('reset-btn').addEventListener('click', () => resetData('responses', 'Delete all question data?'));
@@ -982,7 +977,6 @@
 
     document.getElementById('submit-btn').addEventListener('click', async () => {
       if (!submissionsGloballyEnabled) return alert("Submissions are currently disabled.");
-      // NEW: Check Firestore for existing submission
       const doc = await db.collection('responses').doc(userId).get();
       if (doc.exists) return alert("You have already submitted.");
       const nameInput = document.getElementById('name-input'); const userName = nameInput.value.trim();
@@ -1007,11 +1001,13 @@
       } else { document.getElementById('login-message').innerText = ''; }
       isAdmin = newIsAdmin;
       adminPanel.style.display = isAdmin ? 'block' : 'none';
-      // NEW: Control visibility of the download button container
       document.getElementById('download-container').style.display = isAdmin ? 'block' : 'none';
       document.getElementById('login-btn').style.display = isAdmin ? 'none' : 'inline';
       document.getElementById('logout-btn').style.display = isAdmin ? 'inline' : 'none';
       document.querySelectorAll('.admin-key-input-container').forEach(input => { input.style.display = isAdmin ? 'flex' : 'none'; });
+      // Control visibility of the save all keys button
+      document.getElementById('save-all-keys-container').style.display = isAdmin ? 'block' : 'none';
+
       if (isAdmin) {
         const keyDoc = await db.collection('settings').doc('answerKey').get();
         if (keyDoc.exists) {
@@ -1022,7 +1018,7 @@
           });
         }
       }
-      setupAnswerKeyListeners(); // NEW: Call the function to set up listeners after isAdmin is determined
+      setupAnswerKeyListeners();
     });
     document.getElementById('login-btn').addEventListener('click', () => auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value).catch(e => alert("Login failed: " + e.message)));
     document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
@@ -1047,7 +1043,7 @@
         renderSurveyItems(count);
         document.getElementById('questions-count-status').innerText = count;
         if (isAdmin) { document.getElementById('item-count-input').value = count; }
-        setupAnswerKeyListeners(); // NEW: Also call here in case `isAdmin` is already true
+        setupAnswerKeyListeners();
       });
 
       db.collection('settings').doc('emojiSettings').onSnapshot(doc => {
