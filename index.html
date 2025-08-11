@@ -152,7 +152,6 @@
       border: 1px solid #ccc; border-radius: 4px; padding: 4px;
     }
     
-    /* NEW: Styles for name input and results summary */
     #name-input {
         padding: 8px; font-size: 16px; margin-top: 15px; margin-bottom: 5px;
         border: 1px solid #ccc; border-radius: 4px; display: block; width: 250px;
@@ -160,6 +159,7 @@
     #results-summary {
         margin-top: 30px; padding: 15px; background: #fff8e1; 
         border: 1px solid #ffecb3; font-family: Arial, sans-serif;
+        display: none; /* NEW: Hidden by default */
     }
     #results-summary h3 { margin-top: 0; color: #af6c00; }
     #results-summary ol { padding-left: 20px; }
@@ -170,7 +170,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-  Version 1.0.0
+  Version 1.0.1
 </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -201,6 +201,9 @@
       </div>
       <div id="yes-no-toggle-container">
           <label><input type="checkbox" id="yes-no-visibility-toggle"/> <strong>Show Yes/No Survey</strong></label>
+      </div>
+      <div id="summary-toggle-container">
+        <label><input type="checkbox" id="summary-visibility-toggle"/> <strong>Show Results Summary</strong></label>
       </div>
       <div id="item-count-container">
         <label><strong>Questions to Show:</strong></label>
@@ -325,7 +328,6 @@
       });
     }
     
-    // MODIFIED: Function now also calculates and displays the summary of incorrect answers.
     async function showAggregatedResults() {
       const settingsDoc = await db.collection('settings').doc('surveySettings').get();
       const visible = (settingsDoc.exists && settingsDoc.data().visibleItems !== undefined) ? settingsDoc.data().visibleItems : 5;
@@ -359,12 +361,11 @@
       }
       document.getElementById('results').innerHTML = html + '</pre>';
 
-      // NEW: Calculate and display the summary of incorrect answers
       const summaryData = [];
       for (let i = 1; i <= visible; i++) {
           const itemCounts = counts['item' + i];
           const correctAnswer = answerKeyData['item' + i];
-          if (!correctAnswer) continue; // Skip if no answer key is set for this item
+          if (!correctAnswer) continue;
 
           const totalVotes = Object.values(itemCounts).reduce((sum, count) => sum + count, 0);
           const correctVotes = itemCounts[correctAnswer] || 0;
@@ -389,106 +390,71 @@
 
     // --- (All other feature sections like EMOJI, STAR RATING, YES/NO are unchanged) ---
     function createFlyingEmojis(targetButton) {
-        const rect = targetButton.getBoundingClientRect();
-        const emojiChar = targetButton.dataset.emoji;
-        const particleCount = 15; 
+        const rect = targetButton.getBoundingClientRect(); const emojiChar = targetButton.dataset.emoji; const particleCount = 15; 
         for (let i = 0; i < particleCount; i++) {
-            const particle = document.createElement('span');
-            particle.classList.add('flying-emoji');
-            particle.innerHTML = emojiChar;
-            const startX = rect.left + rect.width / 2;
-            const startY = rect.top + rect.height / 2;
-            particle.style.left = `${startX}px`;
-            particle.style.top = `${startY}px`;
-            const endX = (Math.random() - 0.5) * 2 * window.innerWidth;
-            const endY = (Math.random() - 0.5) * 2 * window.innerHeight;
+            const particle = document.createElement('span'); particle.classList.add('flying-emoji'); particle.innerHTML = emojiChar;
+            const startX = rect.left + rect.width / 2; const startY = rect.top + rect.height / 2;
+            particle.style.left = `${startX}px`; particle.style.top = `${startY}px`;
+            const endX = (Math.random() - 0.5) * 2 * window.innerWidth; const endY = (Math.random() - 0.5) * 2 * window.innerHeight;
             const duration = Math.random() * 1.5 + 1;
-            particle.style.setProperty('--end-x', `${endX}px`);
-            particle.style.setProperty('--end-y', `${endY}px`);
-            particle.style.animationDuration = `${duration}s`;
+            particle.style.setProperty('--end-x', `${endX}px`); particle.style.setProperty('--end-y', `${endY}px`); particle.style.animationDuration = `${duration}s`;
             document.body.appendChild(particle);
             setTimeout(() => { particle.remove(); }, duration * 1000);
         }
     }
     async function loadEmojiResults() {
-      const snap = await db.collection('emojiReactions').get();
-      const counts = {};
+      const snap = await db.collection('emojiReactions').get(); const counts = {};
       snap.forEach(doc => { counts[doc.data().emoji] = (counts[doc.data().emoji] || 0) + 1; });
-      document.querySelectorAll('.emoji-btn').forEach(btn => {
-        btn.querySelector('.count').innerText = counts[btn.dataset.emoji] || 0;
-      });
+      document.querySelectorAll('.emoji-btn').forEach(btn => { btn.querySelector('.count').innerText = counts[btn.dataset.emoji] || 0; });
     }
     async function checkIfReacted() {
       const doc = await db.collection('emojiReactions').doc(userId).get();
       if (doc.exists) {
-        document.querySelectorAll('.emoji-btn').forEach(btn => {
-          btn.dataset.emoji === doc.data().emoji ? btn.classList.add('selected') : btn.disabled = true;
-        });
+        document.querySelectorAll('.emoji-btn').forEach(btn => { btn.dataset.emoji === doc.data().emoji ? btn.classList.add('selected') : btn.disabled = true; });
       }
     }
     async function handleEmojiClick(e) {
-      const clickedButton = e.currentTarget;
-      const doc = await db.collection('emojiReactions').doc(userId).get();
+      const clickedButton = e.currentTarget; const doc = await db.collection('emojiReactions').doc(userId).get();
       if (doc.exists) return;
-      createFlyingEmojis(clickedButton); 
-      clickedButton.classList.add('clicked-animation');
+      createFlyingEmojis(clickedButton); clickedButton.classList.add('clicked-animation');
       clickedButton.addEventListener('animationend', () => clickedButton.classList.remove('clicked-animation'), { once: true });
-      await db.collection('emojiReactions').doc(userId).set({
-        emoji: clickedButton.dataset.emoji,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      loadEmojiResults();
-      checkIfReacted();
+      await db.collection('emojiReactions').doc(userId).set({ emoji: clickedButton.dataset.emoji, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+      loadEmojiResults(); checkIfReacted();
     }
     function updateStarsUI(rating) {
         document.querySelectorAll('.star-btn').forEach(star => {
             const isSelected = star.dataset.rating <= rating;
-            star.classList.toggle('selected', isSelected);
-            star.innerHTML = isSelected ? '&#9733;' : '&#9734;';
+            star.classList.toggle('selected', isSelected); star.innerHTML = isSelected ? '&#9733;' : '&#9734;';
         });
     }
     async function loadStarRatingResults() {
         const doc = await db.collection('settings').doc('starRatingControl').get();
         if (doc.exists && doc.data().totalRatings > 0) {
-            const { sumOfRatings = 0, totalRatings = 0 } = doc.data();
-            const avg = (sumOfRatings / totalRatings).toFixed(1);
-            const avgRounded = Math.round(avg);
+            const { sumOfRatings = 0, totalRatings = 0 } = doc.data(); const avg = (sumOfRatings / totalRatings).toFixed(1); const avgRounded = Math.round(avg);
             document.getElementById('star-rating-results').innerText = `Average: ${avg} (${totalRatings} ratings)`;
-            if (!document.querySelector('.star-btn[disabled]')) {
-                 updateStarsUI(avgRounded);
-            }
-        } else {
-             document.getElementById('star-rating-results').innerText = 'No ratings yet.';
-             updateStarsUI(0);
-        }
+            if (!document.querySelector('.star-btn[disabled]')) { updateStarsUI(avgRounded); }
+        } else { document.getElementById('star-rating-results').innerText = 'No ratings yet.'; updateStarsUI(0); }
     }
     async function checkIfStarRated() {
         const doc = await db.collection('starRatings').doc(userId).get();
         if(doc.exists) {
-            const userRating = doc.data().rating;
-            updateStarsUI(userRating);
+            const userRating = doc.data().rating; updateStarsUI(userRating);
             document.querySelectorAll('.star-btn').forEach(star => star.setAttribute('disabled', true));
         }
     }
     async function handleStarClick(rating) {
-        const starRatingRef = db.collection('starRatings').doc(userId);
-        const userRatingDoc = await starRatingRef.get();
+        const starRatingRef = db.collection('starRatings').doc(userId); const userRatingDoc = await starRatingRef.get();
         if(userRatingDoc.exists) return;
         if (confirm(`You are about to submit a rating of ${rating} out of 5. Are you sure?`)) {
             const settingsRef = db.collection('settings').doc('starRatingControl');
             try {
                 await db.runTransaction(async (transaction) => {
-                    const settingsDoc = await transaction.get(settingsRef);
-                    const { sumOfRatings = 0, totalRatings = 0 } = settingsDoc.data() || {};
+                    const settingsDoc = await transaction.get(settingsRef); const { sumOfRatings = 0, totalRatings = 0 } = settingsDoc.data() || {};
                     transaction.set(starRatingRef, { rating, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
                     transaction.set(settingsRef, { sumOfRatings: sumOfRatings + rating, totalRatings: totalRatings + 1 }, { merge: true });
                 });
-                checkIfStarRated();
-                loadStarRatingResults();
-            } catch (e) {
-                console.error("Transaction failed: ", e);
-                alert("Could not submit rating. Please try again.");
-            }
+                checkIfStarRated(); loadStarRatingResults();
+            } catch (e) { console.error("Transaction failed: ", e); alert("Could not submit rating. Please try again."); }
         }
     }
     async function checkIfYesNoVoted() {
@@ -496,48 +462,34 @@
         if (doc.exists) {
             const choice = doc.data().choice;
             document.querySelectorAll('.yes-no-btn').forEach(btn => {
-                btn.disabled = true;
-                if (btn.dataset.choice === choice) {
-                    btn.classList.add('selected');
-                }
+                btn.disabled = true; if (btn.dataset.choice === choice) { btn.classList.add('selected'); }
             });
         }
     }
     async function handleYesNoClick(e) {
-        const clickedButton = e.currentTarget;
-        clickedButton.classList.add('clicked-animation');
+        const clickedButton = e.currentTarget; clickedButton.classList.add('clicked-animation');
         clickedButton.addEventListener('animationend', () => { clickedButton.classList.remove('clicked-animation'); }, { once: true });
-        const choice = clickedButton.dataset.choice;
-        const voteRef = db.collection('yesNoVotes').doc(userId);
-        const userVoteDoc = await voteRef.get();
-        if (userVoteDoc.exists) return; 
+        const choice = clickedButton.dataset.choice; const voteRef = db.collection('yesNoVotes').doc(userId);
+        const userVoteDoc = await voteRef.get(); if (userVoteDoc.exists) return; 
         const countsRef = db.collection('settings').doc('yesNoCounts');
         try {
             await db.runTransaction(async (transaction) => {
-                const countsDoc = await transaction.get(countsRef);
-                const currentCounts = countsDoc.data() || { yes: 0, no: 0 };
-                const newCounts = { ...currentCounts };
-                newCounts[choice]++;
+                const countsDoc = await transaction.get(countsRef); const currentCounts = countsDoc.data() || { yes: 0, no: 0 };
+                const newCounts = { ...currentCounts }; newCounts[choice]++;
                 transaction.set(voteRef, { choice, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
                 transaction.set(countsRef, newCounts, { merge: true });
             });
             checkIfYesNoVoted(); 
-        } catch (error) {
-            console.error("Yes/No vote transaction failed: ", error);
-            alert("Your vote could not be cast. Please try again.");
-        }
+        } catch (error) { console.error("Yes/No vote transaction failed: ", error); alert("Your vote could not be cast. Please try again."); }
     }
-
 
     // --- ADMIN UTILITIES ---
     async function resetData(collectionName, confirmationMsg) {
         if (!isAdmin || !confirm(confirmationMsg)) return;
         const snapshot = await db.collection(collectionName).get();
         if (snapshot.empty) return alert(`No data to delete in ${collectionName}.`);
-        const batch = db.batch();
-        snapshot.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-        alert(`${collectionName} data deleted.`);
+        const batch = db.batch(); snapshot.forEach(doc => batch.delete(doc.ref));
+        await batch.commit(); alert(`${collectionName} data deleted.`);
     }
 
     // --- EVENT LISTENERS ---
@@ -550,15 +502,11 @@
     
     document.getElementById('save-keys-btn').addEventListener('click', async () => {
       if (!isAdmin) return;
-      const answerKey = {};
-      const validLetters = ['A', 'B', 'C', 'D', ''];
-      let allValid = true;
+      const answerKey = {}; const validLetters = ['A', 'B', 'C', 'D', '']; let allValid = true;
       document.querySelectorAll('.answer-key-input').forEach(input => {
-        const item = 'item' + input.dataset.item;
-        const value = input.value.trim().toUpperCase();
+        const item = 'item' + input.dataset.item; const value = input.value.trim().toUpperCase();
         if (!validLetters.includes(value)) {
-            allValid = false;
-            alert(`Invalid answer '${input.value}' for Question #${input.dataset.item}. Please use only A, B, C, or D.`);
+            allValid = false; alert(`Invalid answer '${input.value}' for Question #${input.dataset.item}. Please use only A, B, C, or D.`);
             input.focus();
         }
         answerKey[item] = value;
@@ -566,41 +514,32 @@
       if (!allValid) return;
       try {
         await db.collection('settings').doc('answerKey').set(answerKey);
-        alert('Answer key saved successfully!');
-        showAggregatedResults();
-      } catch (e) {
-        console.error('Error saving answer key:', e);
-        alert('Failed to save answer key.');
-      }
+        alert('Answer key saved successfully!'); showAggregatedResults();
+      } catch (e) { console.error('Error saving answer key:', e); alert('Failed to save answer key.'); }
     });
 
     document.getElementById('reset-keys-btn').addEventListener('click', async () => {
         if (!isAdmin) return;
-        if (!confirm('Are you sure you want to reset the entire answer key? This action cannot be undone.')) {
-            return;
-        }
+        if (!confirm('Are you sure you want to reset the entire answer key? This action cannot be undone.')) { return; }
         try {
             await db.collection('settings').doc('answerKey').delete();
             document.querySelectorAll('.answer-key-input').forEach(input => { input.value = ''; });
-            alert('Answer key has been successfully reset.');
-            showAggregatedResults();
-        } catch (e) {
-            console.error('Error resetting answer key:', e);
-            alert('Failed to reset the answer key.');
-        }
+            alert('Answer key has been successfully reset.'); showAggregatedResults();
+        } catch (e) { console.error('Error resetting answer key:', e); alert('Failed to reset the answer key.'); }
     });
 
     document.getElementById('global-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('submissionControl').set({ enabled: e.target.checked }); });
     document.getElementById('emoji-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('emojiSettings').set({ visible: e.target.checked }, { merge: true }); });
     document.getElementById('star-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('starRatingControl').set({ visible: e.target.checked }, { merge: true }); });
     document.getElementById('yes-no-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('yesNoSettings').set({ visible: e.target.checked }, { merge: true }); }); 
+    // NEW: Event listener for the summary visibility toggle
+    document.getElementById('summary-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ visible: e.target.checked }, { merge: true }); });
     document.getElementById('reset-btn').addEventListener('click', () => resetData('responses', 'Delete all question data?'));
     document.getElementById('reset-emoji-btn').addEventListener('click', () => { resetData('emojiReactions', 'Delete all emoji reactions?').then(loadEmojiResults); });
     document.getElementById('reset-stars-btn').addEventListener('click', async () => {
         await resetData('starRatings', 'Delete all star ratings?');
         await db.collection('settings').doc('starRatingControl').set({ sumOfRatings: 0, totalRatings: 0 }, { merge: true });
-        updateStarsUI(0); 
-        loadStarRatingResults();
+        updateStarsUI(0); loadStarRatingResults();
     });
     document.getElementById('reset-yes-no-btn').addEventListener('click', async () => {
         await resetData('yesNoVotes', 'Delete all Yes/No survey votes?');
@@ -609,83 +548,46 @@
     document.querySelectorAll('.emoji-btn').forEach(btn => btn.addEventListener('click', handleEmojiClick));
     document.querySelectorAll('.star-btn').forEach(star => {
         star.addEventListener('click', (e) => handleStarClick(parseInt(e.target.dataset.rating)));
-        star.addEventListener('mouseover', (e) => {
-            if (e.target.hasAttribute('disabled')) return;
-            updateStarsUI(e.target.dataset.rating);
-        });
+        star.addEventListener('mouseover', (e) => { if (e.target.hasAttribute('disabled')) return; updateStarsUI(e.target.dataset.rating); });
     });
-    document.getElementById('star-options').addEventListener('mouseout', () => {
-        if (!document.querySelector('.star-btn[disabled]')) {
-             loadStarRatingResults();
-        }
-    });
+    document.getElementById('star-options').addEventListener('mouseout', () => { if (!document.querySelector('.star-btn[disabled]')) { loadStarRatingResults(); } });
     document.querySelectorAll('.yes-no-btn').forEach(btn => btn.addEventListener('click', handleYesNoClick));
 
-    // MODIFIED: Submit listener now requires and saves the user's name
     document.getElementById('submit-btn').addEventListener('click', async () => {
       if (!submissionsGloballyEnabled) return alert("Submissions are currently disabled.");
       const doc = await db.collection('responses').doc(userId).get();
       if (doc.exists) return alert("You have already submitted.");
-
-      // NEW: Get and validate the user's name
-      const nameInput = document.getElementById('name-input');
-      const userName = nameInput.value.trim();
-      if (!userName) {
-          alert('Please enter your name before submitting.');
-          nameInput.focus();
-          return;
-      }
-
-      const answers = {};
-      const items = document.querySelectorAll('.survey-item');
-      let allAnswered = true;
+      const nameInput = document.getElementById('name-input'); const userName = nameInput.value.trim();
+      if (!userName) { alert('Please enter your name before submitting.'); nameInput.focus(); return; }
+      const answers = {}; const items = document.querySelectorAll('.survey-item'); let allAnswered = true;
       items.forEach(item => {
         const sel = item.querySelector('.btn.selected');
         if (sel) answers['item' + item.dataset.item] = sel.dataset.letter; else allAnswered = false;
       });
       if (items.length > 0 && !allAnswered && !confirm("Some questions are unanswered. Submit anyway?")) return;
-      
-      // MODIFIED: Save the name along with the answers
-      await db.collection('responses').doc(userId).set({ 
-          name: userName,
-          answers, 
-          timestamp: firebase.firestore.FieldValue.serverTimestamp() 
-      });
-      alert("Thanks for your submission, " + userName + "!");
-      showAggregatedResults();
+      await db.collection('responses').doc(userId).set({ name: userName, answers, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+      alert("Thanks for your submission, " + userName + "!"); showAggregatedResults();
     });
 
     // --- AUTH & INITIALIZATION ---
     auth.onAuthStateChanged(async user => {
-      const adminPanel = document.getElementById('admin-panel');
-      let newIsAdmin = false;
-      
+      const adminPanel = document.getElementById('admin-panel'); let newIsAdmin = false;
       if (user) {
         document.getElementById('login-message').innerText = 'Logged in as ' + user.email;
         const adminDoc = await db.collection('admins').doc(user.uid).get();
-        if (adminDoc.exists) {
-          newIsAdmin = true;
-        }
-      } else {
-        document.getElementById('login-message').innerText = '';
-      }
-
+        if (adminDoc.exists) { newIsAdmin = true; }
+      } else { document.getElementById('login-message').innerText = ''; }
       isAdmin = newIsAdmin;
       adminPanel.style.display = isAdmin ? 'block' : 'none';
       document.getElementById('login-btn').style.display = isAdmin ? 'none' : 'inline';
       document.getElementById('logout-btn').style.display = isAdmin ? 'inline' : 'none';
-      
-      document.querySelectorAll('.answer-key-input').forEach(input => {
-        input.style.display = isAdmin ? 'inline-block' : 'none';
-      });
-
+      document.querySelectorAll('.answer-key-input').forEach(input => { input.style.display = isAdmin ? 'inline-block' : 'none'; });
       if (isAdmin) {
         const keyDoc = await db.collection('settings').doc('answerKey').get();
         if (keyDoc.exists) {
             const keyData = keyDoc.data();
             document.querySelectorAll('.answer-key-input').forEach(input => {
-                const itemKey = 'item' + input.dataset.item;
-                input.value = keyData[itemKey] || '';
+                const itemKey = 'item' + input.dataset.item; input.value = keyData[itemKey] || '';
             });
         }
       }
@@ -695,11 +597,9 @@
 
     function setupRealtimeListeners() {
         db.collection('responses').onSnapshot(snapshot => {
-            // Check if THIS user has submitted
             const userDoc = snapshot.docs.find(doc => doc.id === userId);
             userHasSubmitted = !!userDoc;
             updateSubmitButtonState();
-            // Re-render results for everyone when any response changes
             showAggregatedResults();
         });
 
@@ -734,6 +634,13 @@
             if (isAdmin) { document.getElementById('yes-no-visibility-toggle').checked = !!visible; }
         });
 
+        // NEW: Realtime listener for the summary visibility settings
+        db.collection('settings').doc('summarySettings').onSnapshot(doc => {
+            const isVisible = doc.exists && doc.data().visible === true;
+            document.getElementById('results-summary').style.display = isVisible ? 'block' : 'none';
+            if (isAdmin) { document.getElementById('summary-visibility-toggle').checked = isVisible; }
+        });
+
         db.collection('settings').doc('answerKey').onSnapshot(doc => {
             if (isAdmin) {
                 const answerKeyData = doc.exists ? doc.data() : {};
@@ -742,13 +649,12 @@
                     if (document.activeElement !== input) { input.value = answerKeyData[itemKey] || ''; }
                 });
             }
-            showAggregatedResults(); // Refresh summary if key changes
+            showAggregatedResults();
         });
 
         db.collection('settings').doc('yesNoCounts').onSnapshot(doc => {
             const counts = doc.data() || { yes: 0, no: 0 };
-            const yesCount = counts.yes || 0;
-            const noCount = counts.no || 0;
+            const yesCount = counts.yes || 0; const noCount = counts.no || 0;
             document.querySelector('.yes-no-btn[data-choice="yes"] .count').innerText = yesCount;
             document.querySelector('.yes-no-btn[data-choice="no"] .count').innerText = noCount;
             const yesIcon = document.querySelector('.yes-no-btn[data-choice="yes"] .icon');
