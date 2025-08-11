@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Dynamic Survey with Admin Control + Emoji Reactions</title>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; overflow-x: hidden; }
+    .btn { padding: 10px 20px; margin: 5px; border:1px solid #444; background:#eee; cursor:pointer; }
+    .btn.selected { background:#4CAF50; color:#fff; }
+    #submit-btn[disabled] { background:#ccc; color:#666; cursor:not-allowed; }
+    #results { margin-top:30px; padding:15px; background:#f4f4f4; border:1px solid #ccc; white-space:pre-wrap; font-family:monospace; }
+    .bar { color:#4CAF50; }
+    /* Reverted to original green color for most popular answer */
+    .highlight { color:#4CAF50; font-weight:bold; }
+    .line { border-top:1px solid #ccc; margin:10px 0; }
+    .question-title { color: green; font-weight: bold; }
+
+    .emoji-btn {
+      font-size: 24px;
+      padding: 0 5px;
+      margin: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .emoji-btn.selected {
+      transform: scale(1.2);
+    }
+    .emoji-btn .count, .yes-no-btn .count {
+      font-size: 14px;
+      margin-left: 5px;
+    }
+    
+    @keyframes emoji-pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.4); }
+      100% { transform: scale(1); }
+    }
+
+    .emoji-btn.clicked-animation, .yes-no-btn.clicked-animation {
+      animation: emoji-pop 0.4s ease-in-out;
+    }
+
+    #top-controls-wrapper {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    #auth-section {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    #admin-panel {
+      display: none; 
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    #admin-panel button {
+      display: block;
+      margin: 8px 0;
+    }
+    #admin-panel div {
+      margin-top: 8px;
+    }
+    /* NEW: Class for displaying status next to toggles, now green */
+    .status-text {
+        font-weight: bold;
+        margin-left: 5px;
+        color: green;
+    }
+
+    /* Star Rating Styles */
+    #star-rating-container {
+      margin-top: 30px;
+      padding: 15px;
+      background: #f9f9f9;
+      border: 1px solid #ddd;
+    }
+    .star-btn {
+      color: #ddd;
+      cursor: pointer;
+      font-size: 30px;
+      transition: color 0.2s;
+    }
+    .star-btn.hover, .star-btn.selected {
+      color: #ffc107; /* Gold color */
+    }
+    #star-rating-results {
+      margin-top: 10px;
+      font-style: italic;
+      color: #555;
+    }
+
+    /* Yes/No Survey Styles */
+    #yes-no-survey-container {
+      margin-top: 25px; 
+    }
+    .yes-no-btn {
+      background: none;
+      border: none;
+      padding: 8px;
+      border-radius: 6px; 
+      margin: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 16px; 
+      transition: transform 0.2s, background-color 0.2s;
+      display: inline-flex;
+      align-items: center;
+    }
+    .yes-no-btn:not([disabled]):hover {
+      background-color: #f0f0f0; 
+    }
+    .yes-no-btn .icon {
+      display: inline-block;
+      transition: transform 0.4s ease-out;
+      margin-right: 8px;
+      font-size: 20px;
+    }
+    .yes-no-btn.selected {
+      color: #4CAF50;
+      background: none; 
+    }
+    .yes-no-btn.selected:hover {
+      background: none; 
+    }
+    .yes-no-btn[disabled] {
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+    .yes-no-btn[disabled]:hover {
+      background: none;
+    }
+
+    @keyframes fly-across {
+      from { transform: translate(0, 0); opacity: 1; }
+      to { transform: translate(var(--end-x), var(--end-y)); opacity: 0; }
+    }
+    .flying-emoji {
+      position: fixed; z-index: 9999; font-size: 24px; pointer-events: none;
+      animation-name: fly-across;
+      animation-timing-function: cubic-bezier(0.17, 0.84, 0.44, 1);
+      animation-fill-mode: forwards;
+    }
+
+    .answer-key-input {
+      width: 35px; margin-left: 15px; text-align: center; text-transform: uppercase;
+      border: 1px solid #ccc; border-radius: 4px; padding: 4px;
+    }
+    
+    #name-input {
+      padding: 8px; font-size: 16px; margin-top: 15px; margin-bottom: 5px;
+      border: 1px solid #ccc; border-radius: 4px; display: block; width: 250px;
+    }
+    #results-summary {
+      margin-top: 30px; padding: 15px; background: #fff8e1; 
+      border: 1px solid #ffecb3; font-family: Arial, sans-serif;
+      display: none; /* NEW: Hidden by default */
+    }
+    #results-summary h3 { margin-top: 0; color: #af6c00; }
+    #results-summary ol { padding-left: 20px; }
+    #results-summary li { margin-bottom: 8px; }
+
+    /* NEW: Class for the correct answer, which is now red */
+    .correct-answer {
+      color: red;
+      font-weight: bold;
+    }
+
+    /* NEW: Styles for the new summary containers */
+    #top-students-container, #my-score-container {
+      margin-top: 30px;
+      padding: 15px;
+      background: #e6f7ff;
+      border: 1px solid #91d5ff;
+      display: none;
+    }
+    #top-students-container h3, #my-score-container h3 {
+      margin-top: 0;
+      color: #0050b3;
+    }
+    #top-students-container ul { /* Updated to use UL */
+      list-style: none; /* Remove default list bullets */
+      padding-left: 0;
+    }
+    #my-score-container ul { /* Changed from OL to UL */
+      list-style: none;
+      padding-left: 0;
+    }
+    .correct-icon { color: green; font-weight: bold; }
+    .incorrect-icon { color: red; font-weight: bold; }
+    
+  </style>
+</head>
+
+<body>
+  <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
+    Version 1.0.15
+  </div>
+  <img src="RInew.jpg" width="350" height="165" />
+
+  <div id="top-controls-wrapper">
+    <div id="auth-section">
+      <input id="email" type="email" placeholder="Admin Email"/>
+      <input id="password" type="password" placeholder="Password"/>
+      <button id="login-btn">Login</button>
+      <button id="logout-btn" style="display:none;">Logout</button>
+      <div id="login-message"></div>
+    </div>
+    <div id="admin-panel">
+      <h4>Admin Controls</h4>
+      <button id="reset-btn">Reset Question Data</button>
+      <button id="reset-emoji-btn">Reset Emoji Counts</button>
+      <button id="reset-stars-btn">Reset Star Ratings</button>
+      <button id="reset-yes-no-btn">Reset Yes/No Survey</button> 
+      <button id="reset-keys-btn">Reset Answer Key</button>
+      <div id="global-toggle-container">
+        <label><input type="checkbox" id="global-toggle" checked/> <strong>Enable Submissions</strong></label>
+        <span class="status-text" id="global-status"></span>
+      </div>
+      <div id="emoji-toggle-container">
+        <label><input type="checkbox" id="emoji-visibility-toggle" checked/> <strong>Show Emoji Reactions</strong></label>
+        <span class="status-text" id="emoji-status"></span>
+      </div>
+      <div id="star-toggle-container">
+        <label><input type="checkbox" id="star-visibility-toggle" checked/> <strong>Show Star Rating</strong></label>
+        <span class="status-text" id="star-status"></span>
+      </div>
+      <div id="yes-no-toggle-container">
+        <label><input type="checkbox" id="yes-no-visibility-toggle" checked/> <strong>Show Yes/No Survey</strong></label>
+        <span class="status-text" id="yes-no-status"></span>
+      </div>
+      <div id="summary-toggle-container">
+        <label><input type="checkbox" id="summary-visibility-toggle" checked/> <strong>Show Results Summary</strong></label>
+        <span class="status-text" id="summary-status"></span>
+      </div>
+      <div id="results-toggle-container">
+        <label><input type="checkbox" id="results-visibility-toggle" checked/> <strong>Show Raw Results</strong></label>
+        <span class="status-text" id="results-status"></span>
+      </div>
+      <!-- NEW: Toggles for Top Students and My Score containers -->
+      <div id="top-students-toggle-container">
+        <label><input type="checkbox" id="top-students-visibility-toggle" checked/> <strong>Show Top Students</strong></label>
+        <span class="status-text" id="top-students-status"></span>
+      </div>
+      <div id="my-score-toggle-container">
+        <label><input type="checkbox" id="my-score-visibility-toggle" checked/> <strong>Show My Score</strong></label>
+        <span class="status-text" id="my-score-status"></span>
+      </div>
+      <div id="item-count-container">
+        <label><strong>Questions to Show:</strong></label>
+        <input type="number" id="item-count-input" min="0" max="100" value="5" style="width: 50px;"/>
+        <button id="update-item-count">Update</button>
+        <span class="status-text" id="questions-count-status"></span>
+      </div>
+      <!-- NEW: Controls for the Top Students leaderboard count -->
+      <div id="top-students-count-container">
+        <label><strong>Top Students to Show:</strong></label>
+        <input type="number" id="top-students-count-input" min="1" max="50" value="10" style="width: 50px;"/>
+        <button id="update-top-students-count">Update</button>
+        <span class="status-text" id="top-students-count-status"></span>
+      </div>
+      <!-- NEW: Button to generate 10 users -->
+      <button id="generate-users-btn">Generate 10 Users</button>
+    </div>
+  </div>
+
+  <div id="emoji-container">
+    <div><strong>React with an emoji:</strong></div>
+    <div id="emoji-options">
+      <button class="emoji-btn" data-emoji="👍">👍 <span class="count">0</span></button>
+      <button class="emoji-btn" data-emoji="❤️">❤️ <span class="count">0</span></button>
+      <button class="emoji-btn" data-emoji="😂">😂 <span class="count">0</span></button>
+      <button class="emoji-btn" data-emoji="😮">😮 <span class="count">0</span></button>
+    </div>
+  </div>
+  
+  <div id="star-rating-container">
+    <div><strong>Rate your experience:</strong></div>
+    <div id="star-options">
+      <span class="star-btn" data-rating="1">&#9734;</span>
+      <span class="star-btn" data-rating="2">&#9734;</span>
+      <span class="star-btn" data-rating="3">&#9734;</span>
+      <span class="star-btn" data-rating="4">&#9734;</span>
+      <span class="star-btn" data-rating="5">&#9734;</span>
+    </div>
+    <div id="star-rating-results">Loading...</div>
+  </div>
+
+  <div id="yes-no-survey-container">
+    <div><strong>Yes or No?</strong></div>
+    <div id="yes-no-options">
+      <button class="yes-no-btn" data-choice="yes"><span class="icon">👍</span> Yes <span class="count">0</span></button>
+      <button class="yes-no-btn" data-choice="no"><span class="icon">👎</span> No <span class="count">0</span></button>
+    </div>
+  </div>
+
+  <div id="survey-container"></div>
+  
+  <input type="text" id="name-input" placeholder="Your Name" required />
+  <button id="submit-btn">Submit</button>
+  <button id="save-keys-btn">Save Answer Key</button>
+
+  <div id="results"></div>
+  <div id="results-summary"></div>
+  <!-- NEW: Containers for Top 10 Students and My Score -->
+  <div id="top-students-container"></div>
+  <div id="my-score-container"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_5YgdpDfpa0dJtcfkUii_UjCKO9oF4J0",
+      authDomain: "shamankingdata.firebaseapp.com",
+      projectId: "shamankingdata",
+      storageBucket: "shamankingdata.appspot.com",
+      messagingSenderId: "757444066890",
+      appId: "1:757444066890:web:e4f9d41e2905e588d930b3"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore(), auth = firebase.auth();
+
+    let isAdmin = false;
+    let submissionsGloballyEnabled = false;
+    let userHasSubmitted = false;
+
+    function getUserId() {
+      let uid = localStorage.getItem('userId');
+      if (!uid) {
+        uid = 'user_' + Math.random().toString(36).substr(2,9);
+        localStorage.setItem('userId', uid);
+      }
+      return uid;
+    }
+    const userId = getUserId();
+    
+    // --- UTILITY FUNCTIONS ---
+    function disableSubmit(text='Already Submitted'){
+      const btn=document.getElementById('submit-btn');
+      btn.disabled=true; btn.innerText=text;
+    }
+    function enableSubmit(){
+      const btn=document.getElementById('submit-btn');
+      btn.disabled=false; btn.innerText='Submit';
+    }
+
+    function updateSubmitButtonState() {
+      if (!submissionsGloballyEnabled) {
+        disableSubmit('Submissions Disabled');
+      } else if (userHasSubmitted) {
+        disableSubmit('Already Submitted');
+      } else {
+        enableSubmit();
+      }
+    }
+
+    // --- SURVEY LOGIC ---
+    function renderSurveyItems(count) {
+      const container = document.getElementById('survey-container');
+      const submitBtn = document.getElementById('submit-btn');
+      container.innerHTML = '';
+
+      if (count > 0) {
+        submitBtn.style.display = 'inline-block';
+      } else {
+        submitBtn.style.display = 'none';
+      }
+
+      for (let i = 1; i <= count; i++) {
+        const div = document.createElement('div');
+        div.className = 'survey-item';
+        div.dataset.item = i;
+        const inputStyle = isAdmin ? 'inline-block' : 'none';
+        div.innerHTML = `<div class="question-title">Question #${i}</div>
+          <button class="btn" data-letter="A">A</button> <button class="btn" data-letter="B">B</button>
+          <button class="btn" data-letter="C">C</button> <button class="btn" data-letter="D">D</button>
+          <input type="text" class="answer-key-input" data-item="${i}" placeholder="Key" style="display: ${inputStyle};" maxlength="1">`;
+        container.appendChild(div);
+      }
+      document.querySelectorAll('.survey-item .btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.target.parentElement.querySelectorAll('.btn').forEach(b => b.classList.remove('selected'));
+          e.target.classList.add('selected');
+        });
+      });
+    }
+    
+    async function showAggregatedResults() {
+      const settingsDoc = await db.collection('settings').doc('surveySettings').get();
+      const visible = (settingsDoc.exists && settingsDoc.data().visibleItems !== undefined) ? settingsDoc.data().visibleItems : 5;
+      
+      const answerKeyDoc = await db.collection('settings').doc('answerKey').get();
+      const answerKeyData = answerKeyDoc.exists ? answerKeyDoc.data() : {};
+
+      const snapshot = await db.collection('responses').get();
+      const counts = {};
+      for (let i = 1; i <= visible; i++) { counts['item' + i] = { A: 0, B: 0, C: 0, D: 0 }; }
+      snapshot.forEach(doc => {
+        const ans = doc.data().answers;
+        Object.entries(ans).forEach(([k, v]) => { if (counts[k]?.[v] !== undefined) counts[k][v]++; });
+      });
+      let max = 1;
+      Object.values(counts).forEach(c => Object.values(c).forEach(v => max = Math.max(max, v)));
+      let html = '<h3>Results:</h3><pre>';
+      for (let i = 1; i <= visible; i++) {
+        const itm = counts['item' + i];
+        const m = Math.max(...Object.values(itm));
+        const correctAnswer = answerKeyData['item' + i];
+        html += `Item ${i}:\n`;
+        Object.entries(itm).forEach(([ltr, cnt]) => {
+          const bar = `<span class="bar">${'█'.repeat((cnt / max) * 20)}</span>`;
+          let disp = ltr;
+          let classes = [];
+
+          if (cnt === m && cnt > 0) {
+            classes.push('highlight');
+          }
+          if (ltr === correctAnswer) {
+            classes.push('correct-answer');
+          }
+          
+          if (classes.length > 0) {
+            disp = `<span class="${classes.join(' ')}">${ltr}</span>`;
+          }
+          
+          if (ltr === correctAnswer) {
+            disp += ' ✅';
+          }
+
+          html += `  ${disp}: ${cnt} ${bar}\n`;
+        });
+        html += '</pre><div class="line"></div><pre>';
+      }
+      document.getElementById('results').innerHTML = html + '</pre>';
+
+      const summaryData = [];
+      for (let i = 1; i <= visible; i++) {
+        const itemCounts = counts['item' + i];
+        const correctAnswer = answerKeyData['item' + i];
+        if (!correctAnswer) continue;
+
+        const totalVotes = Object.values(itemCounts).reduce((sum, count) => sum + count, 0);
+        const correctVotes = itemCounts[correctAnswer] || 0;
+        const wrongVotes = totalVotes - correctVotes;
+        
+        summaryData.push({ questionNumber: i, wrongCount: wrongVotes });
+      }
+      summaryData.sort((a, b) => b.wrongCount - a.wrongCount);
+
+      let summaryHtml = '<h3>Ranking of Questions by Incorrect Answers:</h3>';
+      if (summaryData.length === 0 || !answerKeyDoc.exists) {
+        summaryHtml += '<p>An answer key must be set by an admin to see this summary.</p>';
+      } else {
+        summaryHtml += '<ol>';
+        summaryData.forEach(item => {
+          summaryHtml += `<li>Question #${item.questionNumber}: <strong>${item.wrongCount}</strong> incorrect answer(s)</li>`;
+        });
+        summaryHtml += '</ol>';
+      }
+      document.getElementById('results-summary').innerHTML = summaryHtml;
+
+      // NEW: Call the new summary functions
+      showTopStudentsResults(snapshot, answerKeyData);
+      showMyScore(answerKeyData);
+    }
+
+    // UPDATED: Function to show top students with new display logic
+    async function showTopStudentsResults(snapshot, answerKey) {
+        const container = document.getElementById('top-students-container');
+        if (!answerKey || Object.keys(answerKey).length === 0) {
+            container.innerHTML = '<h3>Top Students</h3><p>An answer key must be set to display student scores.</p>';
+            return;
+        }
+
+        const scores = [];
+        snapshot.forEach(doc => {
+            const userAnswers = doc.data().answers;
+            let score = 0;
+            const numQuestions = Object.keys(answerKey).length;
+            for (let i = 1; i <= numQuestions; i++) {
+                const itemKey = 'item' + i;
+                if (userAnswers[itemKey] && userAnswers[itemKey] === answerKey[itemKey]) {
+                    score++;
+                }
+            }
+            scores.push({ name: doc.data().name, score: score, userId: doc.id });
+        });
+
+        scores.sort((a, b) => b.score - a.score);
+        
+        const topStudentsCountDoc = await db.collection('settings').doc('topStudentsCount').get();
+        const topN = (topStudentsCountDoc.exists && topStudentsCountDoc.data().count) ? topStudentsCountDoc.data().count : 10;
+        const topStudents = scores.slice(0, topN);
+
+        let html = `<h3>Top ${topN} Students</h3><ul>`;
+        topStudents.forEach((student, index) => {
+            if (isAdmin) {
+                html += `<li>Rank #${index + 1}: <input type="text" value="${student.name}" data-userid="${student.userId}"/> <button data-userid="${student.userId}">Save</button> - Score: ${student.score}</li>`;
+            } else {
+                html += `<li>Rank #${index + 1}: ${student.name} - Score: ${student.score}</li>`;
+            }
+        });
+        html += '</ul>';
+        container.innerHTML = html;
+
+        if (isAdmin) {
+          container.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+              const userId = e.target.dataset.userid;
+              const newName = e.target.previousElementSibling.value;
+              await db.collection('responses').doc(userId).update({ name: newName });
+              alert('Name updated!');
+            });
+          });
+        }
+    }
+
+    // NEW: Function to show current user's score and answers
+    async function showMyScore(answerKey) {
+        const container = document.getElementById('my-score-container');
+        const userDoc = await db.collection('responses').doc(userId).get();
+        if (!userDoc.exists) {
+            container.innerHTML = '<h3>My Score</h3><p>Submit your answers to see your score.</p>';
+            return;
+        }
+        
+        const userAnswers = userDoc.data().answers;
+        if (!answerKey || Object.keys(answerKey).length === 0) {
+            container.innerHTML = '<h3>My Score</h3><p>An answer key must be set to calculate your score.</p>';
+            return;
+        }
+
+        let score = 0;
+        let summaryHtml = '<h3>My Score</h3>';
+        let answerListHtml = '<ul>';
+
+        Object.keys(answerKey).forEach((itemKey, index) => {
+            const questionNumber = index + 1;
+            const userAnswer = userAnswers[itemKey];
+            const correctAnswer = answerKey[itemKey];
+            let icon = '❌';
+            let iconClass = 'incorrect-icon';
+
+            if (userAnswer && userAnswer === correctAnswer) {
+                score++;
+                icon = '✅';
+                iconClass = 'correct-icon';
+            }
+            answerListHtml += `<li>Question #${questionNumber}: Your answer was ${userAnswer || 'N/A'} <span class="${iconClass}">${icon}</span></li>`;
+        });
+        
+        answerListHtml += '</ul>';
+        summaryHtml += `<p>Your Final Score: <strong>${score}</strong></p>`;
+        summaryHtml += `<h4>Answer Summary:</h4>`;
+        summaryHtml += answerListHtml;
+        container.innerHTML = summaryHtml;
+    }
+
+    // NEW: Function to generate test users
+    async function generateTestUsers(numUsers) {
+      if (!isAdmin) {
+        return;
+      }
+      
+      const settingsDoc = await db.collection('settings').doc('surveySettings').get();
+      const visibleItems = (settingsDoc.exists && settingsDoc.data().visibleItems) || 5;
+      const letters = ['A', 'B', 'C', 'D'];
+      const batches = [];
+
+      for (let i = 0; i < numUsers; i++) {
+        const userRef = db.collection('responses').doc('test_user_' + Date.now() + i);
+        const userName = 'Test User ' + (i + 1);
+        const answers = {};
+        for (let j = 1; j <= visibleItems; j++) {
+          answers['item' + j] = letters[Math.floor(Math.random() * letters.length)];
+        }
+        batches.push(userRef.set({ name: userName, answers, timestamp: firebase.firestore.FieldValue.serverTimestamp() }));
+      }
+      
+      await Promise.all(batches);
+      alert(`${numUsers} test users generated.`);
+    }
+
+    // --- (All other feature sections like EMOJI, STAR RATING, YES/NO are unchanged) ---
+    function createFlyingEmojis(targetButton) {
+      const rect = targetButton.getBoundingClientRect(); const emojiChar = targetButton.dataset.emoji; const particleCount = 15; 
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('span'); particle.classList.add('flying-emoji'); particle.innerHTML = emojiChar;
+        const startX = rect.left + rect.width / 2; const startY = rect.top + rect.height / 2;
+        particle.style.left = `${startX}px`; particle.style.top = `${startY}px`;
+        const endX = (Math.random() - 0.5) * 2 * window.innerWidth; const endY = (Math.random() - 0.5) * 2 * window.innerHeight;
+        const duration = Math.random() * 1.5 + 1;
+        particle.style.setProperty('--end-x', `${endX}px`); particle.style.setProperty('--end-y', `${endY}px`); particle.style.animationDuration = `${duration}s`;
+        document.body.appendChild(particle);
+        setTimeout(() => { particle.remove(); }, duration * 1000);
+      }
+    }
+    async function loadEmojiResults() {
+      const snap = await db.collection('emojiReactions').get(); const counts = {};
+      snap.forEach(doc => { counts[doc.data().emoji] = (counts[doc.data().emoji] || 0) + 1; });
+      document.querySelectorAll('.emoji-btn').forEach(btn => { btn.querySelector('.count').innerText = counts[btn.dataset.emoji] || 0; });
+    }
+    async function checkIfReacted() {
+      const doc = await db.collection('emojiReactions').doc(userId).get();
+      if (doc.exists) {
+        document.querySelectorAll('.emoji-btn').forEach(btn => { btn.dataset.emoji === doc.data().emoji ? btn.classList.add('selected') : btn.disabled = true; });
+      }
+    }
+    async function handleEmojiClick(e) {
+      const clickedButton = e.currentTarget; const doc = await db.collection('emojiReactions').doc(userId).get();
+      if (doc.exists) return;
+      createFlyingEmojis(clickedButton); clickedButton.classList.add('clicked-animation');
+      clickedButton.addEventListener('animationend', () => clickedButton.classList.remove('clicked-animation'), { once: true });
+      await db.collection('emojiReactions').doc(userId).set({ emoji: clickedButton.dataset.emoji, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+      loadEmojiResults(); checkIfReacted();
+    }
+    function updateStarsUI(rating) {
+      document.querySelectorAll('.star-btn').forEach(star => {
+        const isSelected = star.dataset.rating <= rating;
+        star.classList.toggle('selected', isSelected); star.innerHTML = isSelected ? '&#9733;' : '&#9734;';
+      });
+    }
+    async function loadStarRatingResults() {
+      const doc = await db.collection('settings').doc('starRatingControl').get();
+      if (doc.exists && doc.data().totalRatings > 0) {
+        const { sumOfRatings = 0, totalRatings = 0 } = doc.data(); const avg = (sumOfRatings / totalRatings).toFixed(1); const avgRounded = Math.round(avg);
+        document.getElementById('star-rating-results').innerText = `Average: ${avg} (${totalRatings} ratings)`;
+        if (!document.querySelector('.star-btn[disabled]')) { updateStarsUI(avgRounded); }
+      } else { document.getElementById('star-rating-results').innerText = 'No ratings yet.'; updateStarsUI(0); }
+    }
+    async function checkIfStarRated() {
+      const doc = await db.collection('starRatings').doc(userId).get();
+      if(doc.exists) {
+        const userRating = doc.data().rating; updateStarsUI(userRating);
+        document.querySelectorAll('.star-btn').forEach(star => star.setAttribute('disabled', true));
+      }
+    }
+    async function handleStarClick(rating) {
+      const starRatingRef = db.collection('starRatings').doc(userId); const userRatingDoc = await starRatingRef.get();
+      if(userRatingDoc.exists) return;
+      if (confirm(`You are about to submit a rating of ${rating} out of 5. Are you sure?`)) {
+        const settingsRef = db.collection('settings').doc('starRatingControl');
+        try {
+          await db.runTransaction(async (transaction) => {
+            const settingsDoc = await transaction.get(settingsRef); const { sumOfRatings = 0, totalRatings = 0 } = settingsDoc.data() || {};
+            transaction.set(starRatingRef, { rating, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+            transaction.set(settingsRef, { sumOfRatings: sumOfRatings + rating, totalRatings: totalRatings + 1 }, { merge: true });
+          });
+          checkIfStarRated(); loadStarRatingResults();
+        } catch (e) { console.error("Transaction failed: ", e); alert("Could not submit rating. Please try again."); }
+      }
+    }
+    async function checkIfYesNoVoted() {
+      const doc = await db.collection('yesNoVotes').doc(userId).get();
+      if (doc.exists) {
+        const choice = doc.data().choice;
+        document.querySelectorAll('.yes-no-btn').forEach(btn => {
+          btn.disabled = true; if (btn.dataset.choice === choice) { btn.classList.add('selected'); }
+        });
+      }
+    }
+    async function handleYesNoClick(e) {
+      const clickedButton = e.currentTarget; clickedButton.classList.add('clicked-animation');
+      clickedButton.addEventListener('animationend', () => { clickedButton.classList.remove('clicked-animation'); }, { once: true });
+      const choice = clickedButton.dataset.choice; const voteRef = db.collection('yesNoVotes').doc(userId);
+      const userVoteDoc = await voteRef.get(); if (userVoteDoc.exists) return; 
+      const countsRef = db.collection('settings').doc('yesNoCounts');
+      try {
+        await db.runTransaction(async (transaction) => {
+          const countsDoc = await transaction.get(countsRef); const currentCounts = countsDoc.data() || { yes: 0, no: 0 };
+          const newCounts = { ...currentCounts }; newCounts[choice]++;
+          transaction.set(voteRef, { choice, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+          transaction.set(countsRef, newCounts, { merge: true });
+        });
+        checkIfYesNoVoted(); 
+      } catch (error) { console.error("Yes/No vote transaction failed: ", error); alert("Your vote could not be cast. Please try again."); }
+    }
+
+    // --- ADMIN UTILITIES ---
+    async function resetData(collectionName, confirmationMsg) {
+      if (!isAdmin || !confirm(confirmationMsg)) return;
+      const snapshot = await db.collection(collectionName).get();
+      if (snapshot.empty) return alert(`No data to delete in ${collectionName}.`);
+      const batch = db.batch(); snapshot.forEach(doc => batch.delete(doc.ref));
+      await batch.commit(); alert(`${collectionName} data deleted.`);
+    }
+
+    // --- EVENT LISTENERS ---
+    document.getElementById('update-item-count').addEventListener('click', async () => {
+      const count = parseInt(document.getElementById('item-count-input').value, 10);
+      if (count < 0 || count > 100) return alert("Enter a number between 0 and 100.");
+      await db.collection('settings').doc('surveySettings').set({ visibleItems: count }, { merge: true });
+      alert(`Visible items updated to ${count}`);
+    });
+    
+    // NEW: Listener for the new top students count update button
+    document.getElementById('update-top-students-count').addEventListener('click', async () => {
+      const count = parseInt(document.getElementById('top-students-count-input').value, 10);
+      if (count < 1 || count > 50) return alert("Enter a number between 1 and 50.");
+      await db.collection('settings').doc('topStudentsCount').set({ count: count }, { merge: true });
+      alert(`Top students count updated to ${count}`);
+    });
+    
+    document.getElementById('save-keys-btn').addEventListener('click', async () => {
+      if (!isAdmin) return;
+      const answerKey = {}; const validLetters = ['A', 'B', 'C', 'D', '']; let allValid = true;
+      document.querySelectorAll('.answer-key-input').forEach(input => {
+        const item = 'item' + input.dataset.item; const value = input.value.trim().toUpperCase();
+        if (!validLetters.includes(value)) {
+          allValid = false; alert(`Invalid answer '${input.value}' for Question #${input.dataset.item}. Please use only A, B, C, or D.`);
+          input.focus();
+        }
+        answerKey[item] = value;
+      });
+      if (!allValid) return;
+      try {
+        await db.collection('settings').doc('answerKey').set(answerKey);
+        alert('Answer key saved successfully!'); showAggregatedResults();
+      } catch (e) { console.error('Error saving answer key:', e); alert('Failed to save answer key.'); }
+    });
+
+    document.getElementById('reset-keys-btn').addEventListener('click', async () => {
+      if (!isAdmin) return;
+      if (!confirm('Are you sure you want to reset the entire answer key? This action cannot be undone.')) { return; }
+      try {
+        await db.collection('settings').doc('answerKey').delete();
+        document.querySelectorAll('.answer-key-input').forEach(input => { input.value = ''; });
+        alert('Answer key has been successfully reset.'); showAggregatedResults();
+      } catch (e) { console.error('Error resetting answer key:', e); alert('Failed to reset the answer key.'); }
+    });
+
+    document.getElementById('global-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('submissionControl').set({ enabled: e.target.checked }); });
+    document.getElementById('emoji-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('emojiSettings').set({ visible: e.target.checked }, { merge: true }); });
+    document.getElementById('star-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('starRatingControl').set({ visible: e.target.checked }, { merge: true }); });
+    document.getElementById('yes-no-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('yesNoSettings').set({ visible: e.target.checked }, { merge: true }); }); 
+    document.getElementById('summary-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ visible: e.target.checked }, { merge: true }); });
+    document.getElementById('results-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('resultsSettings').set({ visible: e.target.checked }, { merge: true }); });
+    document.getElementById('top-students-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ topStudentsVisible: e.target.checked }, { merge: true }); });
+    document.getElementById('my-score-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ userScoreVisible: e.target.checked }, { merge: true }); });
+    document.getElementById('generate-users-btn').addEventListener('click', async () => { await generateTestUsers(10); showAggregatedResults(); });
+
+    document.getElementById('reset-btn').addEventListener('click', () => resetData('responses', 'Delete all question data?'));
+    document.getElementById('reset-emoji-btn').addEventListener('click', () => { resetData('emojiReactions', 'Delete all emoji reactions?').then(loadEmojiResults); });
+    document.getElementById('reset-stars-btn').addEventListener('click', async () => {
+      await resetData('starRatings', 'Delete all star ratings?');
+      await db.collection('settings').doc('starRatingControl').set({ sumOfRatings: 0, totalRatings: 0 }, { merge: true });
+      updateStarsUI(0); loadStarRatingResults();
+    });
+    document.getElementById('reset-yes-no-btn').addEventListener('click', async () => {
+      await resetData('yesNoVotes', 'Delete all Yes/No survey votes?');
+      await db.collection('settings').doc('yesNoCounts').set({ yes: 0, no: 0 });
+    });
+    document.querySelectorAll('.emoji-btn').forEach(btn => btn.addEventListener('click', handleEmojiClick));
+    document.querySelectorAll('.star-btn').forEach(star => {
+      star.addEventListener('click', (e) => handleStarClick(parseInt(e.target.dataset.rating)));
+      star.addEventListener('mouseover', (e) => { if (e.target.hasAttribute('disabled')) return; updateStarsUI(e.target.dataset.rating); });
+    });
+    document.getElementById('star-options').addEventListener('mouseout', () => { if (!document.querySelector('.star-btn[disabled]')) { loadStarRatingResults(); } });
+    document.querySelectorAll('.yes-no-btn').forEach(btn => btn.addEventListener('click', handleYesNoClick));
+
+    document.getElementById('submit-btn').addEventListener('click', async () => {
+      if (!submissionsGloballyEnabled) return alert("Submissions are currently disabled.");
+      const doc = await db.collection('responses').doc(userId).get();
+      if (doc.exists) return alert("You have already submitted.");
+      const nameInput = document.getElementById('name-input'); const userName = nameInput.value.trim();
+      if (!userName) { alert('Please enter your name before submitting.'); nameInput.focus(); return; }
+      const answers = {}; const items = document.querySelectorAll('.survey-item'); let allAnswered = true;
+      items.forEach(item => {
+        const sel = item.querySelector('.btn.selected');
+        if (sel) answers['item' + item.dataset.item] = sel.dataset.letter; else allAnswered = false;
+      });
+      if (items.length > 0 && !allAnswered && !confirm("Some questions are unanswered. Submit anyway?")) return;
+      await db.collection('responses').doc(userId).set({ name: userName, answers, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+      alert("Thanks for your submission, " + userName + "!"); showAggregatedResults();
+    });
+
+    // --- AUTH & INITIALIZATION ---
+    auth.onAuthStateChanged(async user => {
+      const adminPanel = document.getElementById('admin-panel'); let newIsAdmin = false;
+      if (user) {
+        document.getElementById('login-message').innerText = 'Logged in as ' + user.email;
+        const adminDoc = await db.collection('admins').doc(user.uid).get();
+        if (adminDoc.exists) { newIsAdmin = true; }
+      } else { document.getElementById('login-message').innerText = ''; }
+      isAdmin = newIsAdmin;
+      adminPanel.style.display = isAdmin ? 'block' : 'none';
+      document.getElementById('login-btn').style.display = isAdmin ? 'none' : 'inline';
+      document.getElementById('logout-btn').style.display = isAdmin ? 'inline' : 'none';
+      document.querySelectorAll('.answer-key-input').forEach(input => { input.style.display = isAdmin ? 'inline-block' : 'none'; });
+      document.getElementById('save-keys-btn').style.display = isAdmin ? 'inline-block' : 'none';
+      if (isAdmin) {
+        const keyDoc = await db.collection('settings').doc('answerKey').get();
+        if (keyDoc.exists) {
+          const keyData = keyDoc.data();
+          document.querySelectorAll('.answer-key-input').forEach(input => {
+            const itemKey = 'item' + input.dataset.item;
+            if (document.activeElement !== input) { input.value = keyData[itemKey] || ''; }
+          });
+        }
+      }
+    });
+    document.getElementById('login-btn').addEventListener('click', () => auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value).catch(e => alert("Login failed: " + e.message)));
+    document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
+
+    function setupRealtimeListeners() {
+      db.collection('responses').onSnapshot(snapshot => {
+        const userDoc = snapshot.docs.find(doc => doc.id === userId);
+        userHasSubmitted = !!userDoc;
+        updateSubmitButtonState();
+        showAggregatedResults();
+      });
+
+      db.collection('settings').doc('submissionControl').onSnapshot(doc => {
+        const isEnabled = doc.exists && doc.data().enabled === true;
+        submissionsGloballyEnabled = isEnabled; 
+        if (isAdmin) { document.getElementById('global-toggle').checked = isEnabled; }
+        document.getElementById('global-status').innerText = isEnabled ? 'ON' : 'OFF';
+      });
+
+      db.collection('settings').doc('surveySettings').onSnapshot(doc => {
+        const count = (doc.exists && doc.data().visibleItems !== undefined) ? doc.data().visibleItems : 5;
+        renderSurveyItems(count);
+        document.getElementById('questions-count-status').innerText = count;
+        if (isAdmin) { document.getElementById('item-count-input').value = count; }
+      });
+
+      db.collection('settings').doc('emojiSettings').onSnapshot(doc => {
+        const visible = doc.exists && doc.data().visible;
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('emoji-container').style.display = (isAdmin || visible) ? 'block' : 'none';
+        if (isAdmin) { document.getElementById('emoji-visibility-toggle').checked = !!visible; }
+        document.getElementById('emoji-status').innerText = visible ? 'ON' : 'OFF';
+      });
+
+      db.collection('settings').doc('starRatingControl').onSnapshot(doc => {
+        const visible = doc.exists && doc.data().visible;
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('star-rating-container').style.display = (isAdmin || visible) ? 'block' : 'none';
+        if (isAdmin) { document.getElementById('star-visibility-toggle').checked = !!visible; }
+        document.getElementById('star-status').innerText = visible ? 'ON' : 'OFF';
+      });
+      
+      db.collection('settings').doc('yesNoSettings').onSnapshot(doc => {
+        const visible = doc.exists && doc.data().visible;
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('yes-no-survey-container').style.display = (isAdmin || visible) ? 'block' : 'none';
+        if (isAdmin) { document.getElementById('yes-no-visibility-toggle').checked = !!visible; }
+        document.getElementById('yes-no-status').innerText = visible ? 'ON' : 'OFF';
+      });
+
+      db.collection('settings').doc('summarySettings').onSnapshot(doc => {
+        const isVisible = doc.exists && doc.data().visible === true;
+        const topStudentsVisible = doc.exists && doc.data().topStudentsVisible === true;
+        const userScoreVisible = doc.exists && doc.data().userScoreVisible === true;
+        
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('results-summary').style.display = (isAdmin || isVisible) ? 'block' : 'none';
+        if (isAdmin) { document.getElementById('summary-visibility-toggle').checked = isVisible; }
+        document.getElementById('summary-status').innerText = isVisible ? 'ON' : 'OFF';
+        
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('top-students-container').style.display = (isAdmin || topStudentsVisible) ? 'block' : 'none';
+        if (isAdmin) { document.getElementById('top-students-visibility-toggle').checked = topStudentsVisible; }
+        document.getElementById('top-students-status').innerText = topStudentsVisible ? 'ON' : 'OFF';
+
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('my-score-container').style.display = (isAdmin || userScoreVisible) ? 'block' : 'none';
+        if (isAdmin) { document.getElementById('my-score-visibility-toggle').checked = userScoreVisible; }
+        document.getElementById('my-score-status').innerText = userScoreVisible ? 'ON' : 'OFF';
+      });
+      
+      // NEW: Listener for top students count setting
+      db.collection('settings').doc('topStudentsCount').onSnapshot(doc => {
+        const count = (doc.exists && doc.data().count) ? doc.data().count : 10;
+        if (isAdmin) { document.getElementById('top-students-count-input').value = count; }
+        document.getElementById('top-students-count-status').innerText = count;
+        showAggregatedResults();
+      });
+
+      db.collection('settings').doc('resultsSettings').onSnapshot(doc => {
+        const isVisible = doc.exists && doc.data().visible === true;
+        // NEW: If admin, always show the container, otherwise follow the Firestore setting
+        document.getElementById('results').style.display = (isAdmin || isVisible) ? 'block' : 'none';
+        if (isAdmin) { document.getElementById('results-visibility-toggle').checked = isVisible; }
+        document.getElementById('results-status').innerText = isVisible ? 'ON' : 'OFF';
+      });
+
+      db.collection('settings').doc('answerKey').onSnapshot(doc => {
+        if (isAdmin) {
+          const answerKeyData = doc.exists ? doc.data() : {};
+          document.querySelectorAll('.answer-key-input').forEach(input => {
+            const itemKey = 'item' + input.dataset.item;
+            if (document.activeElement !== input) { input.value = keyData[itemKey] || ''; }
+          });
+        }
+        showAggregatedResults();
+      });
+
+      db.collection('settings').doc('yesNoCounts').onSnapshot(doc => {
+        const counts = doc.data() || { yes: 0, no: 0 };
+        const yesCount = counts.yes || 0; const noCount = counts.no || 0;
+        document.querySelector('.yes-no-btn[data-choice="yes"] .count').innerText = yesCount;
+        document.querySelector('.yes-no-btn[data-choice="no"] .count').innerText = noCount;
+        const yesIcon = document.querySelector('.yes-no-btn[data-choice="yes"] .icon');
+        const noIcon = document.querySelector('.yes-no-btn[data-choice="no"] .icon');
+        const calculateScale = (count) => {
+          const baseScale = 1; const scaleFactor = 0.4; const maxScale = 4.0;
+          let scale = baseScale + Math.log1p(count) * scaleFactor;
+          return Math.min(scale, maxScale);
+        };
+        if (yesIcon) { yesIcon.style.transform = `scale(${calculateScale(yesCount)})`; }
+        if (noIcon) { noIcon.style.transform = `scale(${calculateScale(noCount)})`; }
+      });
+    }
+
+    window.onload = () => {
+      loadEmojiResults();
+      checkIfReacted();
+      loadStarRatingResults();
+      checkIfStarRated();
+      checkIfYesNoVoted(); 
+      setupRealtimeListeners();
+    };
+  </script>
+</body>
+</html>
