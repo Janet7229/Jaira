@@ -17,6 +17,7 @@
     #submit-btn[disabled] { background:#ccc; color:#666; cursor:not-allowed; }
     #results { margin-top:30px; padding:15px; background:#f4f4f4; border:1px solid #ccc; white-space:pre-wrap; font-family:monospace; }
     .bar { color:#4CAF50; }
+    /* Reverted to original green color for most popular answer */
     .highlight { color:#4CAF50; font-weight:bold; }
     .line { border-top:1px solid #ccc; margin:10px 0; }
     .question-title { color: green; font-weight: bold; }
@@ -166,18 +167,18 @@
     #results-summary ol { padding-left: 20px; }
     #results-summary li { margin-bottom: 8px; }
 
-    /* New style for the bold, red letter in the raw results */
-    .result-letter {
-      font-weight: bold;
+    /* NEW: Class for the correct answer, which is now red */
+    .correct-answer {
       color: red;
+      font-weight: bold;
     }
-
+    
   </style>
 </head>
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-    Version 1.0.3
+    Version 1.0.5
   </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -195,7 +196,6 @@
       <button id="reset-emoji-btn">Reset Emoji Counts</button>
       <button id="reset-stars-btn">Reset Star Ratings</button>
       <button id="reset-yes-no-btn">Reset Yes/No Survey</button> 
-      <!-- Moved from here -->
       <button id="reset-keys-btn">Reset Answer Key</button>
       <div id="global-toggle-container">
         <label><input type="checkbox" id="global-toggle"/> <strong>Enable Submissions</strong></label>
@@ -212,7 +212,6 @@
       <div id="summary-toggle-container">
         <label><input type="checkbox" id="summary-visibility-toggle"/> <strong>Show Results Summary</strong></label>
       </div>
-      <!-- NEW: Toggle for the raw results container -->
       <div id="results-toggle-container">
         <label><input type="checkbox" id="results-visibility-toggle"/> <strong>Show Raw Results</strong></label>
       </div>
@@ -258,7 +257,6 @@
   
   <input type="text" id="name-input" placeholder="Your Name" required />
   <button id="submit-btn">Submit</button>
-  <!-- NEW: The Save Answer Key button is now next to the submit button, but still only visible to admins -->
   <button id="save-keys-btn">Save Answer Key</button>
 
   <div id="results"></div>
@@ -365,10 +363,24 @@
         html += `Item ${i}:\n`;
         Object.entries(itm).forEach(([ltr, cnt]) => {
           const bar = `<span class="bar">${'█'.repeat((cnt / max) * 20)}</span>`;
-          // MODIFIED: Make the letter bold and red
-          let disp = `<span class="result-letter">${ltr}</span>`;
-          if (cnt === m && cnt > 0) { disp = `<span class="highlight">${ltr}</span>`; }
-          if (ltr === correctAnswer) { disp += ' ✅'; }
+          let disp = ltr;
+          let classes = [];
+
+          if (cnt === m && cnt > 0) {
+            classes.push('highlight');
+          }
+          if (ltr === correctAnswer) {
+            classes.push('correct-answer');
+          }
+          
+          if (classes.length > 0) {
+            disp = `<span class="${classes.join(' ')}">${ltr}</span>`;
+          }
+          
+          if (ltr === correctAnswer) {
+            disp += ' ✅';
+          }
+
           html += `  ${disp}: ${cnt} ${bar}\n`;
         });
         html += '</pre><div class="line"></div><pre>';
@@ -596,14 +608,14 @@
       document.getElementById('login-btn').style.display = isAdmin ? 'none' : 'inline';
       document.getElementById('logout-btn').style.display = isAdmin ? 'inline' : 'none';
       document.querySelectorAll('.answer-key-input').forEach(input => { input.style.display = isAdmin ? 'inline-block' : 'none'; });
-      // NEW: Show/hide the Save Answer Key button based on admin status
       document.getElementById('save-keys-btn').style.display = isAdmin ? 'inline-block' : 'none';
       if (isAdmin) {
         const keyDoc = await db.collection('settings').doc('answerKey').get();
         if (keyDoc.exists) {
           const keyData = keyDoc.data();
           document.querySelectorAll('.answer-key-input').forEach(input => {
-            const itemKey = 'item' + input.dataset.item; input.value = keyData[itemKey] || '';
+            const itemKey = 'item' + input.dataset.item;
+            if (document.activeElement !== input) { input.value = keyData[itemKey] || ''; }
           });
         }
       }
@@ -667,7 +679,7 @@
           const answerKeyData = doc.exists ? doc.data() : {};
           document.querySelectorAll('.answer-key-input').forEach(input => {
             const itemKey = 'item' + input.dataset.item;
-            if (document.activeElement !== input) { input.value = answerKeyData[itemKey] || ''; }
+            if (document.activeElement !== input) { input.value = keyData[itemKey] || ''; }
           });
         }
         showAggregatedResults();
