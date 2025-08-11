@@ -158,7 +158,7 @@
         animation-fill-mode: forwards;
     }
 
-    /* NEW: Answer Key Input Style */
+    /* Answer Key Input Style */
     .answer-key-input {
       width: 35px;
       margin-left: 15px;
@@ -174,7 +174,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-  Version 0.8.0
+  Version 0.9.0
 </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -192,7 +192,8 @@
       <button id="reset-emoji-btn">Reset Emoji Counts</button>
       <button id="reset-stars-btn">Reset Star Ratings</button>
       <button id="reset-yes-no-btn">Reset Yes/No Survey</button> 
-      <button id="save-keys-btn">Save Answer Key</button> <div id="global-toggle-container">
+      <button id="save-keys-btn">Save Answer Key</button>
+      <button id="reset-keys-btn">Reset Answer Key</button> <div id="global-toggle-container">
         <label><input type="checkbox" id="global-toggle"/> <strong>Enable Submissions</strong></label>
       </div>
       <div id="emoji-toggle-container">
@@ -309,7 +310,6 @@
         const div = document.createElement('div');
         div.className = 'survey-item';
         div.dataset.item = i;
-        // MODIFIED: Added answer key input field, hidden by default. Visibility is controlled by isAdmin flag.
         const inputStyle = isAdmin ? 'inline-block' : 'none';
         div.innerHTML = `<div class="question-title">Question #${i}</div>
           <button class="btn" data-letter="A">A</button> <button class="btn" data-letter="B">B</button>
@@ -328,7 +328,6 @@
       const settingsDoc = await db.collection('settings').doc('surveySettings').get();
       const visible = (settingsDoc.exists && settingsDoc.data().visibleItems !== undefined) ? settingsDoc.data().visibleItems : 5;
       
-      // NEW: Fetch the answer key
       const answerKeyDoc = await db.collection('settings').doc('answerKey').get();
       const answerKeyData = answerKeyDoc.exists ? answerKeyDoc.data() : {};
 
@@ -345,18 +344,17 @@
       for (let i = 1; i <= visible; i++) {
         const itm = counts['item' + i];
         const m = Math.max(...Object.values(itm));
-        const correctAnswer = answerKeyData['item' + i]; // NEW: Get correct answer
+        const correctAnswer = answerKeyData['item' + i];
         html += `Item ${i}:\n`;
         Object.entries(itm).forEach(([ltr, cnt]) => {
           const bar = `<span class="bar">${'█'.repeat((cnt / max) * 20)}</span>`;
           
-          // MODIFIED: Display logic to show popular and correct answers
           let disp = ltr;
           if (cnt === m && cnt > 0) {
-            disp = `<span class="highlight">${ltr}</span>`; // Highlight most popular
+            disp = `<span class="highlight">${ltr}</span>`;
           }
           if (ltr === correctAnswer) {
-            disp += ' ✅'; // Add checkmark if correct
+            disp += ' ✅';
           }
 
           html += `  ${disp}: ${cnt} ${bar}\n`;
@@ -366,37 +364,27 @@
       document.getElementById('results').innerHTML = html + '</pre>';
     }
 
-    // --- EMOJI LOGIC ---
-    // This section is unchanged.
+    // --- EMOJI LOGIC (Unchanged) ---
     function createFlyingEmojis(targetButton) {
         const rect = targetButton.getBoundingClientRect();
         const emojiChar = targetButton.dataset.emoji;
         const particleCount = 15; 
-
         for (let i = 0; i < particleCount; i++) {
             const particle = document.createElement('span');
             particle.classList.add('flying-emoji');
             particle.innerHTML = emojiChar;
-
             const startX = rect.left + rect.width / 2;
             const startY = rect.top + rect.height / 2;
-            
             particle.style.left = `${startX}px`;
             particle.style.top = `${startY}px`;
-
             const endX = (Math.random() - 0.5) * 2 * window.innerWidth;
             const endY = (Math.random() - 0.5) * 2 * window.innerHeight;
             const duration = Math.random() * 1.5 + 1;
-
             particle.style.setProperty('--end-x', `${endX}px`);
             particle.style.setProperty('--end-y', `${endY}px`);
             particle.style.animationDuration = `${duration}s`;
-
             document.body.appendChild(particle);
-
-            setTimeout(() => {
-                particle.remove();
-            }, duration * 1000);
+            setTimeout(() => { particle.remove(); }, duration * 1000);
         }
     }
     async function loadEmojiResults() {
@@ -419,22 +407,18 @@
       const clickedButton = e.currentTarget;
       const doc = await db.collection('emojiReactions').doc(userId).get();
       if (doc.exists) return;
-
       createFlyingEmojis(clickedButton); 
       clickedButton.classList.add('clicked-animation');
       clickedButton.addEventListener('animationend', () => clickedButton.classList.remove('clicked-animation'), { once: true });
-      
       await db.collection('emojiReactions').doc(userId).set({
         emoji: clickedButton.dataset.emoji,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
-
       loadEmojiResults();
       checkIfReacted();
     }
     
-    // --- STAR RATING LOGIC ---
-    // This section is unchanged.
+    // --- STAR RATING LOGIC (Unchanged) ---
     function updateStarsUI(rating) {
         document.querySelectorAll('.star-btn').forEach(star => {
             const isSelected = star.dataset.rating <= rating;
@@ -469,20 +453,14 @@
         const starRatingRef = db.collection('starRatings').doc(userId);
         const userRatingDoc = await starRatingRef.get();
         if(userRatingDoc.exists) return;
-
-        const confirmationMessage = `You are about to submit a rating of ${rating} out of 5. Are you sure?`;
-        if (confirm(confirmationMessage)) {
+        if (confirm(`You are about to submit a rating of ${rating} out of 5. Are you sure?`)) {
             const settingsRef = db.collection('settings').doc('starRatingControl');
             try {
                 await db.runTransaction(async (transaction) => {
                     const settingsDoc = await transaction.get(settingsRef);
                     const { sumOfRatings = 0, totalRatings = 0 } = settingsDoc.data() || {};
-                    
                     transaction.set(starRatingRef, { rating, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
-                    transaction.set(settingsRef, {
-                        sumOfRatings: sumOfRatings + rating,
-                        totalRatings: totalRatings + 1
-                    }, { merge: true });
+                    transaction.set(settingsRef, { sumOfRatings: sumOfRatings + rating, totalRatings: totalRatings + 1 }, { merge: true });
                 });
                 checkIfStarRated();
                 loadStarRatingResults();
@@ -490,13 +468,10 @@
                 console.error("Transaction failed: ", e);
                 alert("Could not submit rating. Please try again.");
             }
-        } else {
-            return;
         }
     }
 
-    // --- YES/NO SURVEY LOGIC ---
-    // This section is unchanged.
+    // --- YES/NO SURVEY LOGIC (Unchanged) ---
     async function checkIfYesNoVoted() {
         const doc = await db.collection('yesNoVotes').doc(userId).get();
         if (doc.exists) {
@@ -512,24 +487,18 @@
     async function handleYesNoClick(e) {
         const clickedButton = e.currentTarget;
         clickedButton.classList.add('clicked-animation');
-        clickedButton.addEventListener('animationend', () => {
-            clickedButton.classList.remove('clicked-animation');
-        }, { once: true });
-
+        clickedButton.addEventListener('animationend', () => { clickedButton.classList.remove('clicked-animation'); }, { once: true });
         const choice = clickedButton.dataset.choice;
         const voteRef = db.collection('yesNoVotes').doc(userId);
         const userVoteDoc = await voteRef.get();
         if (userVoteDoc.exists) return; 
-
         const countsRef = db.collection('settings').doc('yesNoCounts');
         try {
             await db.runTransaction(async (transaction) => {
                 const countsDoc = await transaction.get(countsRef);
                 const currentCounts = countsDoc.data() || { yes: 0, no: 0 };
-                
                 const newCounts = { ...currentCounts };
                 newCounts[choice]++;
-
                 transaction.set(voteRef, { choice, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
                 transaction.set(countsRef, newCounts, { merge: true });
             });
@@ -559,35 +528,53 @@
       await db.collection('settings').doc('surveySettings').set({ visibleItems: count }, { merge: true });
       alert(`Visible items updated to ${count}`);
     });
-    // NEW: Event listener for saving the answer key
+    
     document.getElementById('save-keys-btn').addEventListener('click', async () => {
       if (!isAdmin) return;
       const answerKey = {};
       const validLetters = ['A', 'B', 'C', 'D', ''];
       let allValid = true;
-
       document.querySelectorAll('.answer-key-input').forEach(input => {
         const item = 'item' + input.dataset.item;
         const value = input.value.trim().toUpperCase();
-
         if (!validLetters.includes(value)) {
             allValid = false;
             alert(`Invalid answer '${input.value}' for Question #${input.dataset.item}. Please use only A, B, C, or D.`);
             input.focus();
         }
-        answerKey[item] = value; // Store the value (even if empty to clear it)
+        answerKey[item] = value;
       });
-
       if (!allValid) return;
-
       try {
         await db.collection('settings').doc('answerKey').set(answerKey);
         alert('Answer key saved successfully!');
+        showAggregatedResults(); // Refresh results to show new checkmarks
       } catch (e) {
         console.error('Error saving answer key:', e);
         alert('Failed to save answer key.');
       }
     });
+
+    // NEW: Event listener for resetting the answer key
+    document.getElementById('reset-keys-btn').addEventListener('click', async () => {
+        if (!isAdmin) return;
+        if (!confirm('Are you sure you want to reset the entire answer key? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            await db.collection('settings').doc('answerKey').delete();
+            document.querySelectorAll('.answer-key-input').forEach(input => {
+                input.value = '';
+            });
+            alert('Answer key has been successfully reset.');
+            showAggregatedResults(); // Refresh results to remove checkmarks
+        } catch (e) {
+            console.error('Error resetting answer key:', e);
+            alert('Failed to reset the answer key.');
+        }
+    });
+
     document.getElementById('global-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('submissionControl').set({ enabled: e.target.checked }); });
     document.getElementById('emoji-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('emojiSettings').set({ visible: e.target.checked }, { merge: true }); });
     document.getElementById('star-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('starRatingControl').set({ visible: e.target.checked }, { merge: true }); });
@@ -637,7 +624,6 @@
     });
 
     // --- AUTH & INITIALIZATION ---
-    // MODIFIED: Simplified admin state handling and added logic to show/hide and populate answer key fields
     auth.onAuthStateChanged(async user => {
       const adminPanel = document.getElementById('admin-panel');
       let newIsAdmin = false;
@@ -652,18 +638,16 @@
         document.getElementById('login-message').innerText = '';
       }
 
-      isAdmin = newIsAdmin; // Update global admin flag
+      isAdmin = newIsAdmin;
       adminPanel.style.display = isAdmin ? 'block' : 'none';
       document.getElementById('login-btn').style.display = isAdmin ? 'none' : 'inline';
       document.getElementById('logout-btn').style.display = isAdmin ? 'inline' : 'none';
       
-      // Toggle visibility of ALL answer key inputs based on admin status
       document.querySelectorAll('.answer-key-input').forEach(input => {
         input.style.display = isAdmin ? 'inline-block' : 'none';
       });
 
       if (isAdmin) {
-        // If user is an admin, fetch and populate the answer key fields
         const keyDoc = await db.collection('settings').doc('answerKey').get();
         if (keyDoc.exists) {
             const keyData = keyDoc.data();
@@ -725,13 +709,11 @@
             }
         });
 
-        // NEW: Real-time listener for the answer key to keep admin view in sync.
         db.collection('settings').doc('answerKey').onSnapshot(doc => {
-            if (isAdmin && doc.exists) {
-                const answerKeyData = doc.data();
+            if (isAdmin) { // MODIFIED: Logic now runs even if doc doesn't exist to handle clearing fields on delete.
+                const answerKeyData = doc.exists ? doc.data() : {};
                 document.querySelectorAll('.answer-key-input').forEach(input => {
                     const itemKey = 'item' + input.dataset.item;
-                    // To prevent overwriting what an admin is currently typing, check if the input is focused.
                     if (document.activeElement !== input) {
                         input.value = answerKeyData[itemKey] || '';
                     }
@@ -758,12 +740,8 @@
                 return Math.min(scale, maxScale);
             };
 
-            if (yesIcon) {
-                yesIcon.style.transform = `scale(${calculateScale(yesCount)})`;
-            }
-            if (noIcon) {
-                noIcon.style.transform = `scale(${calculateScale(noCount)})`;
-            }
+            if (yesIcon) { yesIcon.style.transform = `scale(${calculateScale(yesCount)})`; }
+            if (noIcon) { noIcon.style.transform = `scale(${calculateScale(noCount)})`; }
         });
     }
 
