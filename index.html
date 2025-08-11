@@ -197,7 +197,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-    Version 1.0.7
+    Version 1.0.8
   </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -476,7 +476,8 @@
 
         let html = '<h3>Top 10 Students</h3><ol>';
         top10.forEach((student, index) => {
-            html += `<li>#${index + 1}: ${student.name} - Score: ${student.score}</li>`;
+            // UPDATED: Changed the display from `#1` to `Rank #1`
+            html += `<li>Rank #${index + 1}: ${student.name} - Score: ${student.score}</li>`;
         });
         html += '</ol>';
         container.innerHTML = html;
