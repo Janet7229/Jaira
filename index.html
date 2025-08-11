@@ -562,7 +562,7 @@
         
         summaryData.push({ questionNumber: i, wrongCount: wrongVotes });
       }
-      summaryData.sort((a, b) => b.wrongCount - a.wrongCount);
+      summaryData.sort((a, b) => b.wrongVotes - a.wrongVotes);
 
       let summaryHtml = '<h3>Ranking of Questions by Incorrect Answers:</h3>';
       if (summaryData.length === 0 || !answerKeyDoc.exists) {
