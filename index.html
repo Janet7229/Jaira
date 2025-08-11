@@ -172,13 +172,32 @@
       color: red;
       font-weight: bold;
     }
+
+    /* NEW: Styles for the new summary containers */
+    #top-students-container, #my-score-container {
+      margin-top: 30px;
+      padding: 15px;
+      background: #e6f7ff;
+      border: 1px solid #91d5ff;
+      display: none;
+    }
+    #top-students-container h3, #my-score-container h3 {
+      margin-top: 0;
+      color: #0050b3;
+    }
+    #my-score-container ol {
+      list-style-type: none;
+      padding-left: 0;
+    }
+    .correct-icon { color: green; font-weight: bold; }
+    .incorrect-icon { color: red; font-weight: bold; }
     
   </style>
 </head>
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-    Version 1.0.5
+    Version 1.0.6
   </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -214,6 +233,13 @@
       </div>
       <div id="results-toggle-container">
         <label><input type="checkbox" id="results-visibility-toggle"/> <strong>Show Raw Results</strong></label>
+      </div>
+      <!-- NEW: Toggles for Top Students and My Score containers -->
+      <div id="top-students-toggle-container">
+        <label><input type="checkbox" id="top-students-visibility-toggle"/> <strong>Show Top Students</strong></label>
+      </div>
+      <div id="my-score-toggle-container">
+        <label><input type="checkbox" id="my-score-visibility-toggle"/> <strong>Show My Score</strong></label>
       </div>
       <div id="item-count-container">
         <label><strong>Questions to Show:</strong></label>
@@ -261,6 +287,9 @@
 
   <div id="results"></div>
   <div id="results-summary"></div>
+  <!-- NEW: Containers for Top 10 Students and My Score -->
+  <div id="top-students-container" style="display:none;"></div>
+  <div id="my-score-container" style="display:none;"></div>
 
   <script>
     const firebaseConfig = {
@@ -412,6 +441,84 @@
         summaryHtml += '</ol>';
       }
       document.getElementById('results-summary').innerHTML = summaryHtml;
+
+      // NEW: Call the new summary functions
+      showTopStudentsResults(snapshot, answerKeyData);
+      showMyScore(answerKeyData);
+    }
+
+    // NEW: Function to show top 10 students
+    async function showTopStudentsResults(snapshot, answerKey) {
+        const container = document.getElementById('top-students-container');
+        if (!answerKey || Object.keys(answerKey).length === 0) {
+            container.innerHTML = '<h3>Top 10 Students</h3><p>An answer key must be set to display student scores.</p>';
+            return;
+        }
+
+        const scores = [];
+        snapshot.forEach(doc => {
+            const userAnswers = doc.data().answers;
+            let score = 0;
+            const numQuestions = Object.keys(answerKey).length;
+            for (let i = 1; i <= numQuestions; i++) {
+                const itemKey = 'item' + i;
+                if (userAnswers[itemKey] && userAnswers[itemKey] === answerKey[itemKey]) {
+                    score++;
+                }
+            }
+            scores.push({ name: doc.data().name, score: score });
+        });
+
+        scores.sort((a, b) => b.score - a.score);
+        const top10 = scores.slice(0, 10);
+
+        let html = '<h3>Top 10 Students</h3><ol>';
+        top10.forEach((student, index) => {
+            html += `<li>#${index + 1}: ${student.name} - Score: ${student.score}</li>`;
+        });
+        html += '</ol>';
+        container.innerHTML = html;
+    }
+
+    // NEW: Function to show current user's score and answers
+    async function showMyScore(answerKey) {
+        const container = document.getElementById('my-score-container');
+        const userDoc = await db.collection('responses').doc(userId).get();
+        if (!userDoc.exists) {
+            container.innerHTML = '<h3>My Score</h3><p>Submit your answers to see your score.</p>';
+            return;
+        }
+        
+        const userAnswers = userDoc.data().answers;
+        if (!answerKey || Object.keys(answerKey).length === 0) {
+            container.innerHTML = '<h3>My Score</h3><p>An answer key must be set to calculate your score.</p>';
+            return;
+        }
+
+        let score = 0;
+        let summaryHtml = '<h3>My Score</h3>';
+        let answerListHtml = '<ol>';
+
+        Object.keys(answerKey).forEach((itemKey, index) => {
+            const questionNumber = index + 1;
+            const userAnswer = userAnswers[itemKey];
+            const correctAnswer = answerKey[itemKey];
+            let icon = '❌';
+            let iconClass = 'incorrect-icon';
+
+            if (userAnswer && userAnswer === correctAnswer) {
+                score++;
+                icon = '✅';
+                iconClass = 'correct-icon';
+            }
+            answerListHtml += `<li>Question #${questionNumber}: Your answer was ${userAnswer || 'N/A'} <span class="${iconClass}">${icon}</span></li>`;
+        });
+        
+        answerListHtml += '</ol>';
+        summaryHtml += `<p>Your Final Score: <strong>${score}</strong></p>`;
+        summaryHtml += `<h4>Answer Summary:</h4>`;
+        summaryHtml += answerListHtml;
+        container.innerHTML = summaryHtml;
     }
 
     // --- (All other feature sections like EMOJI, STAR RATING, YES/NO are unchanged) ---
@@ -560,6 +667,10 @@
     document.getElementById('yes-no-visibility-toggle').addEventListener('change', async (e) => { if(isAdmin) await db.collection('settings').doc('yesNoSettings').set({ visible: e.target.checked }, { merge: true }); }); 
     document.getElementById('summary-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ visible: e.target.checked }, { merge: true }); });
     document.getElementById('results-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('resultsSettings').set({ visible: e.target.checked }, { merge: true }); });
+    // NEW: Listeners for the new toggles
+    document.getElementById('top-students-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ topStudentsVisible: e.target.checked }, { merge: true }); });
+    document.getElementById('my-score-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('summarySettings').set({ userScoreVisible: e.target.checked }, { merge: true }); });
+
     document.getElementById('reset-btn').addEventListener('click', () => resetData('responses', 'Delete all question data?'));
     document.getElementById('reset-emoji-btn').addEventListener('click', () => { resetData('emojiReactions', 'Delete all emoji reactions?').then(loadEmojiResults); });
     document.getElementById('reset-stars-btn').addEventListener('click', async () => {
@@ -666,6 +777,15 @@
         const isVisible = doc.exists && doc.data().visible === true;
         document.getElementById('results-summary').style.display = isVisible ? 'block' : 'none';
         if (isAdmin) { document.getElementById('summary-visibility-toggle').checked = isVisible; }
+        
+        // NEW: Realtime listeners for the new summary containers
+        const topStudentsVisible = doc.exists && doc.data().topStudentsVisible === true;
+        document.getElementById('top-students-container').style.display = topStudentsVisible ? 'block' : 'none';
+        if (isAdmin) { document.getElementById('top-students-visibility-toggle').checked = topStudentsVisible; }
+
+        const userScoreVisible = doc.exists && doc.data().userScoreVisible === true;
+        document.getElementById('my-score-container').style.display = userScoreVisible ? 'block' : 'none';
+        if (isAdmin) { document.getElementById('my-score-visibility-toggle').checked = userScoreVisible; }
       });
 
       db.collection('settings').doc('resultsSettings').onSnapshot(doc => {
