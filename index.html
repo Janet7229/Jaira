@@ -185,6 +185,10 @@
       margin-top: 0;
       color: #0050b3;
     }
+    #top-students-container ul { /* Updated to use UL */
+      list-style: none; /* Remove default list bullets */
+      padding-left: 0;
+    }
     #my-score-container ol {
       list-style-type: none;
       padding-left: 0;
@@ -197,7 +201,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-    Version 1.0.10
+    Version 1.0.11
   </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -483,12 +487,13 @@
         const topN = (topStudentsCountDoc.exists && topStudentsCountDoc.data().count) ? topStudentsCountDoc.data().count : 10;
         const topStudents = scores.slice(0, topN);
 
-        let html = `<h3>Top ${topN} Students</h3><ol>`;
+        // MODIFIED: Changed the list from <ol> to <ul> and styled it to remove bullets
+        let html = `<h3>Top ${topN} Students</h3><ul>`;
         topStudents.forEach((student, index) => {
             // UPDATED: Removed the number before the rank
             html += `<li>Rank #${index + 1}: ${student.name} - Score: ${student.score}</li>`;
         });
-        html += '</ol>';
+        html += '</ul>';
         container.innerHTML = html;
     }
 
