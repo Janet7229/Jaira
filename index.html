@@ -63,7 +63,6 @@
         font-family:monospace; 
     }
     .bar { color:#4CAF50; }
-    /* REMOVED: color from .highlight class */
     .highlight { font-weight:bold; }
     .line { border-top:1px solid #e0e0e0; margin:15px 0; }
     .question-title { color: #388e3c; font-weight: bold; font-size: 1.1em; margin-bottom: 10px; }
@@ -286,7 +285,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: #ffeb3b; padding: 5px; margin-bottom: 10px; border-radius: 8px;">
-    Version 1.0.21
+    Version 1.0.23
   </div>
   <div class="container-box">
     <img src="RInew.jpg" width="350" height="165" style="display: block; margin: auto;"/>
@@ -474,7 +473,6 @@
         div.className = 'survey-item';
         div.dataset.item = i;
         const inputStyle = isAdmin ? 'flex' : 'none';
-        // UPDATED: Added a 'Save' button next to each input
         div.innerHTML = `<div class="question-title">Question #${i}</div>
           <button class="btn" data-letter="A">A</button> <button class="btn" data-letter="B">B</button>
           <button class="btn" data-letter="C">C</button> <button class="btn" data-letter="D">D</button>
@@ -490,8 +488,12 @@
           e.target.classList.add('selected');
         });
       });
+      // The listener attachment logic has been moved to a new function
+    }
+    
+    // NEW: Function to set up the individual save button listeners
+    function setupAnswerKeyListeners() {
       if (isAdmin) {
-        // UPDATED: Add listener for individual save buttons
         document.querySelectorAll('.save-key-btn').forEach(btn => {
           btn.addEventListener('click', async (e) => {
             const item = 'item' + e.target.dataset.item;
@@ -573,18 +575,16 @@
       } else {
         summaryHtml += '<ol>';
         summaryData.forEach(item => {
-          summaryHtml += `<li>Question #${item.questionNumber}: <strong>${item.wrongCount}</strong> incorrect answer(s)</li>`;
+          summaryHtml += `<li>Question #${item.questionNumber}: <strong>${item.wrongVotes}</strong> incorrect answer(s)</li>`;
         });
         summaryHtml += '</ol>';
       }
       document.getElementById('results-summary').innerHTML = summaryHtml;
 
-      // NEW: Call the new summary functions
       showTopStudentsResults(snapshot, answerKeyData);
       showMyScore(answerKeyData);
     }
 
-    // UPDATED: Function to show top students with new display logic
     async function showTopStudentsResults(snapshot, answerKey) {
         const container = document.getElementById('top-students-container');
         if (!answerKey || Object.keys(answerKey).length === 0) {
@@ -635,7 +635,6 @@
         }
     }
 
-    // NEW: Function to show current user's score and answers
     async function showMyScore(answerKey) {
         const container = document.getElementById('my-score-container');
         const userDoc = await db.collection('responses').doc(userId).get();
@@ -676,7 +675,6 @@
         container.innerHTML = summaryHtml;
     }
 
-    // NEW: Function to generate test users
     async function generateTestUsers(numUsers) {
       if (!isAdmin) {
         return;
@@ -701,7 +699,6 @@
       alert(`${numUsers} test users generated.`);
     }
     
-    // NEW: Global save button functionality
     async function saveAllAnswerKeys() {
         if (!isAdmin) {
             return;
@@ -717,7 +714,7 @@
 
             if (!validLetters.includes(value)) {
                 allValid = false;
-                alert(`Invalid answer '${value}' for Question #${input.dataset.item}. Please use only A, B, C, or D.`);
+                alert(`Invalid answer '${value}'. Please use only A, B, C, or D.`);
                 input.focus();
             }
             answerKey[item] = value;
@@ -738,7 +735,6 @@
     }
 
 
-    // --- (All other feature sections like EMOJI, STAR RATING, YES/NO are unchanged) ---
     function createFlyingEmojis(targetButton) {
       const rect = targetButton.getBoundingClientRect(); const emojiChar = targetButton.dataset.emoji; const particleCount = 15; 
       for (let i = 0; i < particleCount; i++) {
@@ -932,8 +928,6 @@
       document.getElementById('login-btn').style.display = isAdmin ? 'none' : 'inline';
       document.getElementById('logout-btn').style.display = isAdmin ? 'inline' : 'none';
       document.querySelectorAll('.admin-key-input-container').forEach(input => { input.style.display = isAdmin ? 'flex' : 'none'; });
-      // REMOVED: Global save button
-      // document.getElementById('save-keys-btn').style.display = isAdmin ? 'inline-block' : 'none';
       if (isAdmin) {
         const keyDoc = await db.collection('settings').doc('answerKey').get();
         if (keyDoc.exists) {
@@ -944,13 +938,13 @@
           });
         }
       }
+      setupAnswerKeyListeners(); // NEW: Call the function to set up listeners after isAdmin is determined
     });
     document.getElementById('login-btn').addEventListener('click', () => auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value).catch(e => alert("Login failed: " + e.message)));
     document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
 
     function setupRealtimeListeners() {
       db.collection('responses').onSnapshot(snapshot => {
-        // UPDATED: User submission status is now determined by Firestore
         const userDoc = snapshot.docs.find(doc => doc.id === userId);
         userHasSubmitted = !!userDoc;
         updateSubmitButtonState();
@@ -969,9 +963,9 @@
         renderSurveyItems(count);
         document.getElementById('questions-count-status').innerText = count;
         if (isAdmin) { document.getElementById('item-count-input').value = count; }
+        setupAnswerKeyListeners(); // NEW: Also call here in case `isAdmin` is already true
       });
 
-      // UPDATED: Realtime listener for emoji visibility setting
       db.collection('settings').doc('emojiSettings').onSnapshot(doc => {
         const visible = doc.exists && doc.data().visible;
         document.getElementById('emoji-container').style.display = (isAdmin || visible) ? 'block' : 'none';
@@ -979,7 +973,6 @@
         document.getElementById('emoji-status').innerText = visible ? 'ON' : 'OFF';
       });
 
-      // UPDATED: Realtime listener for star rating visibility setting
       db.collection('settings').doc('starRatingControl').onSnapshot(doc => {
         const visible = doc.exists && doc.data().visible;
         document.getElementById('star-rating-container').style.display = (isAdmin || visible) ? 'block' : 'none';
@@ -987,7 +980,6 @@
         document.getElementById('star-status').innerText = visible ? 'ON' : 'OFF';
       });
       
-      // UPDATED: Realtime listener for yes/no survey visibility setting
       db.collection('settings').doc('yesNoSettings').onSnapshot(doc => {
         const visible = doc.exists && doc.data().visible;
         document.getElementById('yes-no-survey-container').style.display = (isAdmin || visible) ? 'block' : 'none';
