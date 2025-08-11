@@ -286,7 +286,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: #ffeb3b; padding: 5px; margin-bottom: 10px; border-radius: 8px;">
-    Version 1.0.20
+    Version 1.0.21
   </div>
   <div class="container-box">
     <img src="RInew.jpg" width="350" height="165" style="display: block; margin: auto;"/>
@@ -400,6 +400,9 @@
   <!-- NEW: Containers for Top 10 Students and My Score -->
   <div id="top-students-container" class="container-box"></div>
   <div id="my-score-container" class="container-box"></div>
+  <div id="save-all-keys-container" style="display:none; text-align: center;">
+    <button id="save-all-keys-btn" class="btn">Save All Answer Keys</button>
+  </div>
 
   <script>
     const firebaseConfig = {
@@ -455,12 +458,15 @@
     function renderSurveyItems(count) {
       const container = document.getElementById('survey-container');
       const submitBtn = document.getElementById('submit-btn');
+      const saveAllKeysContainer = document.getElementById('save-all-keys-container');
       container.innerHTML = '';
 
       if (count > 0) {
         submitBtn.style.display = 'inline-block';
+        saveAllKeysContainer.style.display = isAdmin ? 'block' : 'none';
       } else {
         submitBtn.style.display = 'none';
+        saveAllKeysContainer.style.display = 'none';
       }
 
       for (let i = 1; i <= count; i++) {
@@ -694,6 +700,43 @@
       await Promise.all(batches);
       alert(`${numUsers} test users generated.`);
     }
+    
+    // NEW: Global save button functionality
+    async function saveAllAnswerKeys() {
+        if (!isAdmin) {
+            return;
+        }
+
+        const answerKey = {}; 
+        const validLetters = ['A', 'B', 'C', 'D', '']; 
+        let allValid = true;
+
+        document.querySelectorAll('.answer-key-input').forEach(input => {
+            const item = 'item' + input.dataset.item; 
+            const value = input.value.trim().toUpperCase();
+
+            if (!validLetters.includes(value)) {
+                allValid = false;
+                alert(`Invalid answer '${value}' for Question #${input.dataset.item}. Please use only A, B, C, or D.`);
+                input.focus();
+            }
+            answerKey[item] = value;
+        });
+
+        if (!allValid) {
+            return;
+        }
+
+        try {
+            await db.collection('settings').doc('answerKey').set(answerKey);
+            alert('Answer key for all questions saved successfully!'); 
+            showAggregatedResults();
+        } catch (e) {
+            console.error('Error saving answer key:', e); 
+            alert('Failed to save answer key.');
+        }
+    }
+
 
     // --- (All other feature sections like EMOJI, STAR RATING, YES/NO are unchanged) ---
     function createFlyingEmojis(targetButton) {
@@ -826,6 +869,9 @@
         alert('Answer key has been successfully reset.'); showAggregatedResults();
       } catch (e) { console.error('Error resetting answer key:', e); alert('Failed to reset the answer key.'); }
     });
+    
+    // NEW: Global save all button listener
+    document.getElementById('save-all-keys-btn').addEventListener('click', saveAllAnswerKeys);
 
     document.getElementById('global-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('submissionControl').set({ enabled: e.target.checked }); });
     document.getElementById('emoji-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('emojiSettings').set({ visible: e.target.checked }, { merge: true }); });
