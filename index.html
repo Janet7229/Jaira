@@ -428,7 +428,11 @@
       btn.disabled=false; btn.innerText='Submit';
     }
 
-    function updateSubmitButtonState() {
+    async function updateSubmitButtonState() {
+      // Check Firestore to see if user has submitted
+      const userDoc = await db.collection('responses').doc(userId).get();
+      userHasSubmitted = userDoc.exists;
+
       if (!submissionsGloballyEnabled) {
         disableSubmit('Submissions Disabled');
       } else if (userHasSubmitted) {
@@ -840,6 +844,7 @@
 
     document.getElementById('submit-btn').addEventListener('click', async () => {
       if (!submissionsGloballyEnabled) return alert("Submissions are currently disabled.");
+      // NEW: Check Firestore for existing submission
       const doc = await db.collection('responses').doc(userId).get();
       if (doc.exists) return alert("You have already submitted.");
       const nameInput = document.getElementById('name-input'); const userName = nameInput.value.trim();
@@ -884,6 +889,7 @@
 
     function setupRealtimeListeners() {
       db.collection('responses').onSnapshot(snapshot => {
+        // UPDATED: User submission status is now determined by Firestore
         const userDoc = snapshot.docs.find(doc => doc.id === userId);
         userHasSubmitted = !!userDoc;
         updateSubmitButtonState();
