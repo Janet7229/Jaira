@@ -74,6 +74,11 @@
     #admin-panel div {
       margin-top: 8px;
     }
+    /* NEW: Class for displaying status next to toggles */
+    .status-text {
+        font-weight: bold;
+        margin-left: 5px;
+    }
 
     /* Star Rating Styles */
     #star-rating-container {
@@ -201,7 +206,7 @@
 
 <body>
   <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-    Version 1.0.11
+    Version 1.0.12
   </div>
   <img src="RInew.jpg" width="350" height="165" />
 
@@ -222,39 +227,49 @@
       <button id="reset-keys-btn">Reset Answer Key</button>
       <div id="global-toggle-container">
         <label><input type="checkbox" id="global-toggle"/> <strong>Enable Submissions</strong></label>
+        <span class="status-text" id="global-status"></span>
       </div>
       <div id="emoji-toggle-container">
         <label><input type="checkbox" id="emoji-visibility-toggle"/> <strong>Show Emoji Reactions</strong></label>
+        <span class="status-text" id="emoji-status"></span>
       </div>
       <div id="star-toggle-container">
         <label><input type="checkbox" id="star-visibility-toggle"/> <strong>Show Star Rating</strong></label>
+        <span class="status-text" id="star-status"></span>
       </div>
       <div id="yes-no-toggle-container">
         <label><input type="checkbox" id="yes-no-visibility-toggle"/> <strong>Show Yes/No Survey</strong></label>
+        <span class="status-text" id="yes-no-status"></span>
       </div>
       <div id="summary-toggle-container">
         <label><input type="checkbox" id="summary-visibility-toggle"/> <strong>Show Results Summary</strong></label>
+        <span class="status-text" id="summary-status"></span>
       </div>
       <div id="results-toggle-container">
         <label><input type="checkbox" id="results-visibility-toggle"/> <strong>Show Raw Results</strong></label>
+        <span class="status-text" id="results-status"></span>
       </div>
       <!-- NEW: Toggles for Top Students and My Score containers -->
       <div id="top-students-toggle-container">
         <label><input type="checkbox" id="top-students-visibility-toggle"/> <strong>Show Top Students</strong></label>
+        <span class="status-text" id="top-students-status"></span>
       </div>
       <div id="my-score-toggle-container">
         <label><input type="checkbox" id="my-score-visibility-toggle"/> <strong>Show My Score</strong></label>
+        <span class="status-text" id="my-score-status"></span>
       </div>
       <div id="item-count-container">
         <label><strong>Questions to Show:</strong></label>
         <input type="number" id="item-count-input" min="0" max="100" value="5" style="width: 50px;"/>
         <button id="update-item-count">Update</button>
+        <span class="status-text" id="questions-count-status"></span>
       </div>
       <!-- NEW: Controls for the Top Students leaderboard count -->
       <div id="top-students-count-container">
         <label><strong>Top Students to Show:</strong></label>
         <input type="number" id="top-students-count-input" min="1" max="50" value="10" style="width: 50px;"/>
         <button id="update-top-students-count">Update</button>
+        <span class="status-text" id="top-students-count-status"></span>
       </div>
       <!-- NEW: Button to generate 10 users -->
       <button id="generate-users-btn">Generate 10 Users</button>
@@ -487,7 +502,7 @@
         const topN = (topStudentsCountDoc.exists && topStudentsCountDoc.data().count) ? topStudentsCountDoc.data().count : 10;
         const topStudents = scores.slice(0, topN);
 
-        // MODIFIED: Changed the list from <ol> to <ul> and styled it to remove bullets
+        // MODIFIED: Changed the list from <ol> to <ul> and removed auto-numbering
         let html = `<h3>Top ${topN} Students</h3><ul>`;
         topStudents.forEach((student, index) => {
             // UPDATED: Removed the number before the rank
@@ -796,12 +811,14 @@
         const isEnabled = doc.exists && doc.data().enabled === true;
         submissionsGloballyEnabled = isEnabled; 
         if (isAdmin) { document.getElementById('global-toggle').checked = isEnabled; }
+        document.getElementById('global-status').innerText = isEnabled ? 'ON' : 'OFF';
         updateSubmitButtonState();
       });
 
       db.collection('settings').doc('surveySettings').onSnapshot(doc => {
         const count = (doc.exists && doc.data().visibleItems !== undefined) ? doc.data().visibleItems : 5;
         renderSurveyItems(count);
+        document.getElementById('questions-count-status').innerText = count;
         if (isAdmin) { document.getElementById('item-count-input').value = count; }
       });
 
@@ -809,38 +826,45 @@
         const visible = doc.exists && doc.data().visible;
         document.getElementById('emoji-container').style.display = visible ? 'block' : 'none';
         if (isAdmin) { document.getElementById('emoji-visibility-toggle').checked = !!visible; }
+        document.getElementById('emoji-status').innerText = visible ? 'ON' : 'OFF';
       });
 
       db.collection('settings').doc('starRatingControl').onSnapshot(doc => {
         const visible = doc.exists && doc.data().visible;
         document.getElementById('star-rating-container').style.display = visible ? 'block' : 'none';
         if (isAdmin) { document.getElementById('star-visibility-toggle').checked = !!visible; }
+        document.getElementById('star-status').innerText = visible ? 'ON' : 'OFF';
       });
       
       db.collection('settings').doc('yesNoSettings').onSnapshot(doc => {
         const visible = doc.exists && doc.data().visible;
         document.getElementById('yes-no-survey-container').style.display = visible ? 'block' : 'none';
         if (isAdmin) { document.getElementById('yes-no-visibility-toggle').checked = !!visible; }
+        document.getElementById('yes-no-status').innerText = visible ? 'ON' : 'OFF';
       });
 
       db.collection('settings').doc('summarySettings').onSnapshot(doc => {
         const isVisible = doc.exists && doc.data().visible === true;
         document.getElementById('results-summary').style.display = isVisible ? 'block' : 'none';
         if (isAdmin) { document.getElementById('summary-visibility-toggle').checked = isVisible; }
+        document.getElementById('summary-status').innerText = isVisible ? 'ON' : 'OFF';
         
         const topStudentsVisible = doc.exists && doc.data().topStudentsVisible === true;
         document.getElementById('top-students-container').style.display = topStudentsVisible ? 'block' : 'none';
         if (isAdmin) { document.getElementById('top-students-visibility-toggle').checked = topStudentsVisible; }
+        document.getElementById('top-students-status').innerText = topStudentsVisible ? 'ON' : 'OFF';
 
         const userScoreVisible = doc.exists && doc.data().userScoreVisible === true;
         document.getElementById('my-score-container').style.display = userScoreVisible ? 'block' : 'none';
         if (isAdmin) { document.getElementById('my-score-visibility-toggle').checked = userScoreVisible; }
+        document.getElementById('my-score-status').innerText = userScoreVisible ? 'ON' : 'OFF';
       });
       
       // NEW: Listener for top students count setting
       db.collection('settings').doc('topStudentsCount').onSnapshot(doc => {
         const count = (doc.exists && doc.data().count) ? doc.data().count : 10;
         if (isAdmin) { document.getElementById('top-students-count-input').value = count; }
+        document.getElementById('top-students-count-status').innerText = count;
         showAggregatedResults();
       });
 
@@ -848,6 +872,7 @@
         const isVisible = doc.exists && doc.data().visible === true;
         document.getElementById('results').style.display = isVisible ? 'block' : 'none';
         if (isAdmin) { document.getElementById('results-visibility-toggle').checked = isVisible; }
+        document.getElementById('results-status').innerText = isVisible ? 'ON' : 'OFF';
       });
 
       db.collection('settings').doc('answerKey').onSnapshot(doc => {
