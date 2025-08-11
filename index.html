@@ -11,28 +11,78 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; overflow-x: hidden; }
-    .btn { padding: 10px 20px; margin: 5px; border:1px solid #444; background:#eee; cursor:pointer; }
-    .btn.selected { background:#4CAF50; color:#fff; }
-    #submit-btn[disabled] { background:#ccc; color:#666; cursor:not-allowed; }
-    #results { margin-top:30px; padding:15px; background:#f4f4f4; border:1px solid #ccc; white-space:pre-wrap; font-family:monospace; }
+    body { 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+        padding: 20px; 
+        overflow-x: hidden; 
+        background-color: #f7f9fc; 
+        color: #333;
+    }
+    .container-box {
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        border: 1px solid #e0e0e0;
+    }
+    .btn { 
+        padding: 10px 20px; 
+        margin: 5px; 
+        border: 1px solid #ccc; 
+        background:#f0f0f0; 
+        cursor:pointer; 
+        border-radius: 8px;
+        transition: background-color 0.3s, transform 0.2s;
+    }
+    .btn:hover {
+        background-color: #e5e5e5;
+        transform: translateY(-2px);
+    }
+    .btn.selected { 
+        background:#4CAF50; 
+        color:#fff; 
+        border-color: #4CAF50;
+    }
+    #submit-btn {
+        background-color: #4CAF50;
+        color: white;
+        font-weight: bold;
+        border: none;
+    }
+    #submit-btn[disabled] { 
+        background:#ccc; 
+        color:#666; 
+        cursor:not-allowed; 
+    }
+    #results { 
+        padding:15px; 
+        background-color: #e8f5e9;
+        border: 1px solid #c8e6c9;
+        white-space:pre-wrap; 
+        font-family:monospace; 
+    }
     .bar { color:#4CAF50; }
-    /* Reverted to original green color for most popular answer */
-    .highlight { color:#4CAF50; font-weight:bold; }
-    .line { border-top:1px solid #ccc; margin:10px 0; }
-    .question-title { color: green; font-weight: bold; }
+    .highlight { color:#ffc107; font-weight:bold; }
+    .line { border-top:1px solid #e0e0e0; margin:15px 0; }
+    .question-title { color: #388e3c; font-weight: bold; font-size: 1.1em; margin-bottom: 10px; }
 
     .emoji-btn {
-      font-size: 24px;
-      padding: 0 5px;
+      font-size: 28px;
+      padding: 5px 10px;
       margin: 5px;
-      background: none;
-      border: none;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
       cursor: pointer;
       transition: transform 0.2s;
     }
+    .emoji-btn:hover {
+        transform: scale(1.1);
+    }
     .emoji-btn.selected {
       transform: scale(1.2);
+      box-shadow: 0 0 5px #ffc107;
     }
     .emoji-btn .count, .yes-no-btn .count {
       font-size: 14px;
@@ -54,48 +104,60 @@
       align-items: flex-start;
       gap: 20px;
       flex-wrap: wrap;
-      margin-bottom: 20px;
     }
     #auth-section {
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
+        background-color: #e3f2fd;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border: 1px solid #bbdefb;
     }
     #admin-panel {
-      display: none; 
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
+        display: none; 
+        background-color: #fffde7;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border: 1px solid #ffe0b2;
+    }
+    #admin-panel h4 {
+        color: #ff6f00;
+        margin-top: 0;
     }
     #admin-panel button {
       display: block;
       margin: 8px 0;
+      width: 100%;
     }
     #admin-panel div {
       margin-top: 8px;
+      padding: 5px 0;
+      border-bottom: 1px dashed #e0e0e0;
     }
-    /* NEW: Class for displaying status next to toggles, now green */
+    #admin-panel div:last-of-type {
+        border-bottom: none;
+    }
     .status-text {
         font-weight: bold;
         margin-left: 5px;
-        color: green;
+        color: #4CAF50;
     }
 
     /* Star Rating Styles */
     #star-rating-container {
-      margin-top: 30px;
-      padding: 15px;
-      background: #f9f9f9;
-      border: 1px solid #ddd;
+        padding: 15px;
+        background-color: #fff9e6;
+        border: 1px solid #ffecb3;
     }
     .star-btn {
-      color: #ddd;
+      color: #ccc;
       cursor: pointer;
       font-size: 30px;
-      transition: color 0.2s;
+      transition: color 0.2s, transform 0.2s;
     }
-    .star-btn.hover, .star-btn.selected {
-      color: #ffc107; /* Gold color */
+    .star-btn:hover, .star-btn.selected {
+      color: #ffb300; 
+      transform: scale(1.2);
     }
     #star-rating-results {
       margin-top: 10px;
@@ -108,10 +170,10 @@
       margin-top: 25px; 
     }
     .yes-no-btn {
-      background: none;
-      border: none;
-      padding: 8px;
-      border-radius: 6px; 
+      background: #f0f4c3;
+      border: 1px solid #cddc39;
+      padding: 12px 20px;
+      border-radius: 8px; 
       margin: 5px;
       cursor: pointer;
       font-weight: bold;
@@ -119,9 +181,11 @@
       transition: transform 0.2s, background-color 0.2s;
       display: inline-flex;
       align-items: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .yes-no-btn:not([disabled]):hover {
-      background-color: #f0f0f0; 
+      background-color: #dce775;
+      transform: translateY(-2px);
     }
     .yes-no-btn .icon {
       display: inline-block;
@@ -130,18 +194,18 @@
       font-size: 20px;
     }
     .yes-no-btn.selected {
-      color: #4CAF50;
-      background: none; 
+      background-color: #aed581;
+      color: #333; 
     }
     .yes-no-btn.selected:hover {
-      background: none; 
+      background-color: #aed581;
     }
     .yes-no-btn[disabled] {
       cursor: not-allowed;
       opacity: 0.7;
     }
     .yes-no-btn[disabled]:hover {
-      background: none;
+      background: #f0f4c3;
     }
 
     @keyframes fly-across {
@@ -161,43 +225,50 @@
     }
     
     #name-input {
-      padding: 8px; font-size: 16px; margin-top: 15px; margin-bottom: 5px;
-      border: 1px solid #ccc; border-radius: 4px; display: block; width: 250px;
+      padding: 12px; 
+      font-size: 16px; 
+      margin-top: 15px; 
+      margin-bottom: 10px;
+      border: 1px solid #ccc; 
+      border-radius: 8px; 
+      display: block; 
+      width: 90%;
+      max-width: 300px;
     }
     #results-summary {
-      margin-top: 30px; padding: 15px; background: #fff8e1; 
-      border: 1px solid #ffecb3; font-family: Arial, sans-serif;
-      display: none; /* NEW: Hidden by default */
+      padding: 15px; 
+      background: #f0f4c3; 
+      border: 1px solid #cddc39;
+      font-family: Arial, sans-serif;
+      display: none; 
     }
-    #results-summary h3 { margin-top: 0; color: #af6c00; }
+    #results-summary h3 { margin-top: 0; color: #689f38; }
     #results-summary ol { padding-left: 20px; }
     #results-summary li { margin-bottom: 8px; }
 
-    /* NEW: Class for the correct answer, which is now red */
     .correct-answer {
       color: red;
       font-weight: bold;
     }
 
-    /* NEW: Styles for the new summary containers */
     #top-students-container, #my-score-container {
-      margin-top: 30px;
-      padding: 15px;
-      background: #e6f7ff;
-      border: 1px solid #91d5ff;
+      margin-top: 20px;
+      padding: 20px;
+      background: #e3f2fd;
+      border: 1px solid #bbdefb;
+      border-radius: 12px;
       display: none;
     }
     #top-students-container h3, #my-score-container h3 {
       margin-top: 0;
-      color: #0050b3;
+      color: #1565c0;
     }
-    #top-students-container ul { /* Updated to use UL */
-      list-style: none; /* Remove default list bullets */
-      padding-left: 0;
-    }
-    #my-score-container ul { /* Changed from OL to UL */
+    #top-students-container ul, #my-score-container ul {
       list-style: none;
       padding-left: 0;
+    }
+    #top-students-container li, #my-score-container li {
+        margin-bottom: 8px;
     }
     .correct-icon { color: green; font-weight: bold; }
     .incorrect-icon { color: red; font-weight: bold; }
@@ -206,26 +277,28 @@
 </head>
 
 <body>
-  <div style="font-size: 14px; color: black; background: yellow; padding: 5px; margin-bottom: 10px;">
-    Version 1.0.16
+  <div style="font-size: 14px; color: black; background: #ffeb3b; padding: 5px; margin-bottom: 10px; border-radius: 8px;">
+    Version 1.0.17
   </div>
-  <img src="RInew.jpg" width="350" height="165" />
+  <div class="container-box">
+    <img src="RInew.jpg" width="350" height="165" style="display: block; margin: auto;"/>
+  </div>
 
-  <div id="top-controls-wrapper">
+  <div class="container-box" id="top-controls-wrapper">
     <div id="auth-section">
       <input id="email" type="email" placeholder="Admin Email"/>
       <input id="password" type="password" placeholder="Password"/>
-      <button id="login-btn">Login</button>
-      <button id="logout-btn" style="display:none;">Logout</button>
-      <div id="login-message"></div>
+      <button id="login-btn" class="btn">Login</button>
+      <button id="logout-btn" class="btn" style="display:none;">Logout</button>
+      <p id="login-message"></p>
     </div>
     <div id="admin-panel">
       <h4>Admin Controls</h4>
-      <button id="reset-btn">Reset Question Data</button>
-      <button id="reset-emoji-btn">Reset Emoji Counts</button>
-      <button id="reset-stars-btn">Reset Star Ratings</button>
-      <button id="reset-yes-no-btn">Reset Yes/No Survey</button> 
-      <button id="reset-keys-btn">Reset Answer Key</button>
+      <button id="reset-btn" class="btn">Reset Question Data</button>
+      <button id="reset-emoji-btn" class="btn">Reset Emoji Counts</button>
+      <button id="reset-stars-btn" class="btn">Reset Star Ratings</button>
+      <button id="reset-yes-no-btn" class="btn">Reset Yes/No Survey</button> 
+      <button id="reset-keys-btn" class="btn">Reset Answer Key</button>
       <div id="global-toggle-container">
         <label><input type="checkbox" id="global-toggle" checked/> <strong>Enable Submissions</strong></label>
         <span class="status-text" id="global-status"></span>
@@ -262,22 +335,22 @@
       <div id="item-count-container">
         <label><strong>Questions to Show:</strong></label>
         <input type="number" id="item-count-input" min="0" max="100" value="5" style="width: 50px;"/>
-        <button id="update-item-count">Update</button>
+        <button id="update-item-count" class="btn">Update</button>
         <span class="status-text" id="questions-count-status"></span>
       </div>
       <!-- NEW: Controls for the Top Students leaderboard count -->
       <div id="top-students-count-container">
         <label><strong>Top Students to Show:</strong></label>
         <input type="number" id="top-students-count-input" min="1" max="50" value="10" style="width: 50px;"/>
-        <button id="update-top-students-count">Update</button>
+        <button id="update-top-students-count" class="btn">Update</button>
         <span class="status-text" id="top-students-count-status"></span>
       </div>
       <!-- NEW: Button to generate 10 users -->
-      <button id="generate-users-btn">Generate 10 Users</button>
+      <button id="generate-users-btn" class="btn">Generate 10 Users</button>
     </div>
   </div>
 
-  <div id="emoji-container">
+  <div id="emoji-container" class="container-box">
     <div><strong>React with an emoji:</strong></div>
     <div id="emoji-options">
       <button class="emoji-btn" data-emoji="👍">👍 <span class="count">0</span></button>
@@ -287,7 +360,7 @@
     </div>
   </div>
   
-  <div id="star-rating-container">
+  <div id="star-rating-container" class="container-box">
     <div><strong>Rate your experience:</strong></div>
     <div id="star-options">
       <span class="star-btn" data-rating="1">&#9734;</span>
@@ -299,7 +372,7 @@
     <div id="star-rating-results">Loading...</div>
   </div>
 
-  <div id="yes-no-survey-container">
+  <div id="yes-no-survey-container" class="container-box">
     <div><strong>Yes or No?</strong></div>
     <div id="yes-no-options">
       <button class="yes-no-btn" data-choice="yes"><span class="icon">👍</span> Yes <span class="count">0</span></button>
@@ -307,17 +380,17 @@
     </div>
   </div>
 
-  <div id="survey-container"></div>
+  <div id="survey-container" class="container-box"></div>
   
   <input type="text" id="name-input" placeholder="Your Name" required />
-  <button id="submit-btn">Submit</button>
-  <button id="save-keys-btn">Save Answer Key</button>
+  <button id="submit-btn" class="btn">Submit</button>
+  <button id="save-keys-btn" class="btn">Save Answer Key</button>
 
-  <div id="results"></div>
-  <div id="results-summary"></div>
+  <div id="results" class="container-box"></div>
+  <div id="results-summary" class="container-box"></div>
   <!-- NEW: Containers for Top 10 Students and My Score -->
-  <div id="top-students-container"></div>
-  <div id="my-score-container"></div>
+  <div id="top-students-container" class="container-box"></div>
+  <div id="my-score-container" class="container-box"></div>
 
   <script>
     const firebaseConfig = {
@@ -434,11 +507,6 @@
             disp = `<span class="${classes.join(' ')}">${ltr}</span>`;
           }
           
-          // REMOVED: Checkmark icon
-          // if (ltr === correctAnswer) {
-          //   disp += ' ✅';
-          // }
-
           html += `  ${disp}: ${cnt} ${bar}\n`;
         });
         html += '</pre><div class="line"></div><pre>';
@@ -685,7 +753,7 @@
           transaction.set(countsRef, newCounts, { merge: true });
         });
         checkIfYesNoVoted(); 
-      } catch (error) { console.error("Yes/No vote transaction failed: ", error); alert("Your vote could not be cast. Please try again."); }
+      } catch (error) { console.error("Transaction failed: ", error); alert("Your vote could not be cast. Please try again."); }
     }
 
     // --- ADMIN UTILITIES ---
