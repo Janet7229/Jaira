@@ -1147,19 +1147,29 @@
         if (noIcon) { noIcon.style.transform = `scale(${calculateScale(noCount)})`; }
       });
     }
-window.onload = () => {
-      loadEmojiResults();
-      checkIfReacted();
-      loadStarRatingResults();
-      checkIfStarRated();
-      checkIfYesNoVoted(); 
-      
-      // THE FIX: Wait 1.5 seconds for App Check to get its token
-      // before trying to connect to the database.
-      setTimeout(() => {
-        setupRealtimeListeners();
-      }, 1500); 
-    };
+window.onload = async () => {
+  // --- This part stays the same ---
+  loadEmojiResults();
+  checkIfReacted();
+  loadStarRatingResults();
+  checkIfStarRated();
+  checkIfYesNoVoted();
+
+  // --- NEW, MORE ROBUST FIX ---
+  try {
+    // This line specifically waits until a token is available.
+    // It will throw an error if App Check fails, which helps with debugging.
+    await firebase.appCheck().getToken(false); 
+    
+    console.log("App Check token is ready. Connecting to Firestore...");
+    setupRealtimeListeners();
+
+  } catch (error) {
+    console.error("Could not get App Check token, Firestore will not be initialized.", error);
+    // You might want to display a message to the user here
+    alert("Could not connect to the server. Please refresh the page.");
+  }
+};
   </script>
 </body>
 </html>
