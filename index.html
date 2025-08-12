@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Dynamic Survey with Admin Control + Emoji Reactions</title>
+  <title>THE RIGHT CHOICE</title>
 
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -385,7 +385,6 @@
 
   <div id="survey-container" class="container-box"></div>
   
-  <!-- MOVED: "Save All" button container is now here -->
   <div id="save-all-keys-container" style="display:none; margin-bottom: 15px;">
     <button id="save-all-keys-btn" class="btn">Save All Answer Keys</button>
   </div>
@@ -649,8 +648,16 @@
         let score = 0;
         let summaryHtml = '<h3>My Score</h3>';
         let answerListHtml = '<ul>';
+        
+        // BUG FIX STARTS HERE: Sort keys numerically before displaying
+        const sortedKeys = Object.keys(answerKey).sort((a, b) => {
+            const numA = parseInt(a.replace('item', ''), 10);
+            const numB = parseInt(b.replace('item', ''), 10);
+            return numA - numB;
+        });
 
-        Object.keys(answerKey).forEach((itemKey, index) => {
+        // Loop through the CORRECTLY SORTED keys
+        sortedKeys.forEach((itemKey, index) => {
             const questionNumber = index + 1;
             const userAnswer = userAnswers[itemKey];
             const correctAnswer = answerKey[itemKey];
@@ -664,6 +671,7 @@
             }
             answerListHtml += `<li>Question #${questionNumber}: Your answer was ${userAnswer || 'N/A'} <span class="${iconClass}">${icon}</span></li>`;
         });
+        // BUG FIX ENDS HERE
         
         answerListHtml += '</ul>';
         summaryHtml += `<p>Your Final Score: <strong>${score}</strong></p>`;
