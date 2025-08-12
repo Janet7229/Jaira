@@ -105,11 +105,13 @@
       animation: emoji-pop 0.4s ease-in-out;
     }
 
-    #top-controls-wrapper {
-      display: flex;
-      align-items: flex-start;
-      gap: 20px;
-      flex-wrap: wrap;
+   #top-controls-wrapper {
+  display: flex;
+  flex-direction: column; /* stack vertically */
+  align-items: flex-start; /* left-align children */
+  gap: 20px;
+}
+
     }
     #auth-section {
         background-color: #e3f2fd;
@@ -297,7 +299,7 @@
       <button id="login-btn" class="btn">Login</button>
       <button id="logout-btn" class="btn" style="display:none;">Logout</button>
       <p id="login-message"></p>
-    </div><br/>
+    </div>
     <div id="admin-panel">
       <h4>Admin Controls</h4>
       <button id="reset-btn" class="btn">Reset Question Data</button>
