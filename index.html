@@ -1153,14 +1153,18 @@
         if (noIcon) { noIcon.style.transform = `scale(${calculateScale(noCount)})`; }
       });
     }
-
-    window.onload = () => {
+window.onload = () => {
       loadEmojiResults();
       checkIfReacted();
       loadStarRatingResults();
       checkIfStarRated();
       checkIfYesNoVoted(); 
-      setupRealtimeListeners();
+      
+      // THE FIX: Wait 1.5 seconds for App Check to get its token
+      // before trying to connect to the database.
+      setTimeout(() => {
+        setupRealtimeListeners();
+      }, 1500); 
     };
   </script>
 </body>
