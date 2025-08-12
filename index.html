@@ -284,7 +284,7 @@
 </head>
 
 <body>
-    <div style="font-size: 14px; color: black; background: #ffeb3b; padding: 5px; margin-bottom: 10px; border-radius: 8px;">
+  <div style="font-size: 14px; color: black; background: #ffeb3b; padding: 5px; margin-bottom: 10px; border-radius: 8px;">
     Version 1.0.24
   </div>
   <div class="container-box">
@@ -413,29 +413,26 @@
     };
     firebase.initializeApp(firebaseConfig);
 
-    // --- ADD THIS CODE BLOCK to initialize App Check ---
-    try {
-        const appCheck = firebase.appCheck();
-        appCheck.activate(
-            // IMPORTANT: Replace this with your own reCAPTCHA v3 site key.
-            // You can get this from the App Check section of the Firebase console.
-            '6LeVs6MrAAAAAF0Midg70djZM1Q8RXxoTSjwdvOo',
-            true // Automatic token refreshment.
-        );
-        console.log('Firebase App Check activated successfully.');
-    } catch (error) {
-        console.error('Error activating Firebase App Check:', error);
-    }
-    // --- END of App Check initialization ---
+    // --- ADD THIS CODE BLOCK to initialize App Check ---
+    try {
+        const appCheck = firebase.appCheck();
+        appCheck.activate(
+            // REMINDER: Put your real reCAPTCHA v3 site key here
+            'YOUR_RECAPTCHA_V3_SITE_KEY',
+            true // Automatic token refreshment.
+        );
+        console.log('Firebase App Check activated successfully.');
+    } catch (error) {
+        console.error('Error activating Firebase App Check:', error);
+    }
+    // --- END of App Check initialization ---
 
     const db = firebase.firestore(), auth = firebase.auth();
 
     let isAdmin = false;
     let submissionsGloballyEnabled = false;
     let userHasSubmitted = false;
-    
-    // ... (The rest of your JavaScript code remains exactly the same) ...
-
+    
     function getUserId() {
       let uid = localStorage.getItem('userId');
       if (!uid) {
@@ -668,14 +665,12 @@
         let summaryHtml = '<h3>My Score</h3>';
         let answerListHtml = '<ul>';
         
-        // BUG FIX STARTS HERE: Sort keys numerically before displaying
         const sortedKeys = Object.keys(answerKey).sort((a, b) => {
             const numA = parseInt(a.replace('item', ''), 10);
             const numB = parseInt(b.replace('item', ''), 10);
             return numA - numB;
         });
 
-        // Loop through the CORRECTLY SORTED keys
         sortedKeys.forEach((itemKey, index) => {
             const questionNumber = index + 1;
             const userAnswer = userAnswers[itemKey];
@@ -690,7 +685,6 @@
             }
             answerListHtml += `<li>Question #${questionNumber}: Your answer was ${userAnswer || 'N/A'} <span class="${iconClass}">${icon}</span></li>`;
         });
-        // BUG FIX ENDS HERE
         
         answerListHtml += '</ul>';
         summaryHtml += `<p>Your Final Score: <strong>${score}</strong></p>`;
@@ -822,7 +816,7 @@
                     row.push(`"${cellValue}"`);
                 }
                 csvRows.push(row.join(","));
-            });
+          _BOS_ });
 
             const csvString = csvRows.join("\r\n");
             const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
@@ -1159,12 +1153,12 @@ window.onload = () => {
       loadStarRatingResults();
       checkIfStarRated();
       checkIfYesNoVoted(); 
-      
-      // THE FIX: Wait 1.5 seconds for App Check to get its token
-      // before trying to connect to the database.
+      
+      // THE FIX: Wait 1.5 seconds for App Check to get its token
+      // before trying to connect to the database.
       setTimeout(() => {
-        setupRealtimeListeners();
-      }, 1500); 
+        setupRealtimeListeners();
+      }, 1500); 
     };
   </script>
 </body>
