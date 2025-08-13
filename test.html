@@ -350,10 +350,15 @@
         <span class="status-text" id="top-students-count-status"></span>
       </div>
       <button id="generate-users-btn" class="btn">Generate 10 Users</button>
-      <div id="add-section-container">
-        <label for="section-textarea" style="font-weight: bold;">Add a note to all user records:</label>
-        <textarea id="section-textarea" rows="3" style="width: 95%; margin: 5px 0; border-radius: 4px; border: 1px solid #ccc; padding: 5px;" placeholder="Type the note here..."></textarea>
-        <button id="add-note-btn" class="btn">Add Note to All Users</button>
+      <div id="add-section-container">
+        <label for="section-textarea" style="font-weight: bold;">Add a note to all user records:</label>
+        <textarea id="section-textarea" rows="3" style="width: 95%; margin: 5px 0; border-radius: 4px; border: 1px solid #ccc; padding: 5px;" placeholder="Type the note here..."></textarea>
+        <button id="add-note-btn" class="btn">Add Note to All Users</button>
+      </div>
+      <div id="add-group-name-container">
+        <label for="group-name-input" style="font-weight: bold;">Add Group Name to all user records:</label>
+        <input type="text" id="group-name-input" placeholder="Type group name..." style="width: 95%; margin: 5px 0; border-radius: 4px; border: 1px solid #ccc; padding: 5px;">
+        <button id="add-group-name-btn" class="btn">Add Group Name to All Users</button>
       </div>
     </div>
   </div>
@@ -775,7 +780,7 @@
                 studentData.push({
                     name: response.name,
                     score: score,
-                    answers: userAnswers
+           D           answers: userAnswers
                 });
             });
 
@@ -928,15 +933,52 @@
       await batch.commit(); alert(`${collectionName} data deleted.`);
     }
 
-    async function addNoteToAllUsers() {
+    async function addNoteToAllUsers() {
+        if (!isAdmin) {
+            alert('This feature is for admins only.');
+            return;
+        }
+
+        const noteText = document.getElementById('section-textarea').value.trim();
+        if (!noteText) {
+            alert('Please type the note to add in the text area before submitting.');
+            return;
+        }
+
+        const snapshot = await db.collection('responses').get();
+        if (snapshot.empty) {
+            alert('There are no user records to update.');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to add this note to ALL ${snapshot.size} user records? This action cannot be undone.`)) {
+            return;
+        }
+
+        try {
+            const batch = db.batch();
+            snapshot.forEach(doc => {
+                batch.update(doc.ref, { adminNote: noteText });
+            });
+
+            await batch.commit();
+            alert(`Successfully added the note to ${snapshot.size} user records.`);
+            document.getElementById('section-textarea').value = ''; // Clear the textarea on success
+        } catch (error) {
+            console.error("Error adding note to all users:", error);
+            alert("Failed to add the note to user records. See console for details.");
+        }
+    }
+    
+    async function addGroupNameToAllUsers() {
         if (!isAdmin) {
             alert('This feature is for admins only.');
             return;
         }
 
-        const noteText = document.getElementById('section-textarea').value.trim();
-        if (!noteText) {
-            alert('Please type the note to add in the text area before submitting.');
+        const groupName = document.getElementById('group-name-input').value.trim();
+        if (!groupName) {
+            alert('Please type the group name in the text box before submitting.');
             return;
         }
 
@@ -946,22 +988,22 @@
             return;
         }
 
-        if (!confirm(`Are you sure you want to add this note to ALL ${snapshot.size} user records? This action cannot be undone.`)) {
+        if (!confirm(`Are you sure you want to add the group name "${groupName}" to ALL ${snapshot.size} user records? This action cannot be undone.`)) {
             return;
         }
 
         try {
             const batch = db.batch();
             snapshot.forEach(doc => {
-                batch.update(doc.ref, { adminNote: noteText });
+                batch.update(doc.ref, { groupName: groupName });
             });
 
             await batch.commit();
-            alert(`Successfully added the note to ${snapshot.size} user records.`);
-            document.getElementById('section-textarea').value = ''; // Clear the textarea on success
+            alert(`Successfully added the group name to ${snapshot.size} user records.`);
+            document.getElementById('group-name-input').value = ''; 
         } catch (error) {
-            console.error("Error adding note to all users:", error);
-            alert("Failed to add the note to user records. See console for details.");
+            console.error("Error adding group name to all users:", error);
+            alert("Failed to add the group name to user records. See console for details.");
         }
     }
 
@@ -991,7 +1033,8 @@
     });
     
     document.getElementById('save-all-keys-btn').addEventListener('click', saveAllAnswerKeys);
-    document.getElementById('add-note-btn').addEventListener('click', addNoteToAllUsers);
+    document.getElementById('add-note-btn').addEventListener('click', addNoteToAllUsers);
+    document.getElementById('add-group-name-btn').addEventListener('click', addGroupNameToAllUsers);
 
     document.getElementById('global-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('submissionControl').set({ enabled: e.target.checked }); });
     document.getElementById('emoji-visibility-toggle').addEventListener('change', async (e) => { if (isAdmin) await db.collection('settings').doc('emojiSettings').set({ visible: e.target.checked }, { merge: true }); });
