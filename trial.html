@@ -122,16 +122,20 @@
       border: 1px solid #ccc; border-radius: 4px; padding: 4px;
     }
     
-    #name-input {
-      padding: 12px; 
-      font-size: 16px; 
-      margin-top: 15px; 
-      margin-bottom: 10px;
-      border: 1px solid #ccc; 
-      border-radius: 8px; 
-      display: block; 
-      width: 90%;
-      max-width: 300px;
+    .user-input-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+    .user-input-container input {
+        padding: 12px; 
+        font-size: 16px; 
+        border: 1px solid #ccc; 
+        border-radius: 8px; 
+        flex-grow: 1;
+        min-width: 200px;
     }
     #results-summary {
       padding: 15px; 
@@ -240,7 +244,7 @@
 <body>
   <div id="message-box"></div>
   <div style="font-size: 14px; color: black; background: #ffeb3b; padding: 5px; margin-bottom: 10px; border-radius: 8px;">
-    Version 1.1.1
+    Version 1.1.3
   </div>
   <div class="container-box">
     <img src="https://placehold.co/350x165/eeeeee/cccccc?text=Image" onerror="this.onerror=null;this.src='https://placehold.co/350x165/eeeeee/cccccc?text=Image+Not+Found';" width="350" height="165" style="display: block; margin: 0;"/>
@@ -318,11 +322,16 @@
   </div>
 
   <div id="survey-container" class="container-box"></div>
-  
+ 
   <div id="save-all-keys-container" style="display:none; margin-bottom: 15px;">
     <button id="save-all-keys-btn" class="btn">Save All Answer Keys</button>
   </div>
-  <input type="text" id="name-input" placeholder="Your Name" required />
+  
+  <!-- MODIFIED: Wrapped inputs in a container for better layout -->
+  <div class="user-input-container">
+      <input type="text" id="name-input" placeholder="Your Name (Required)" required />
+      <input type="text" id="gcash-input" placeholder="G-Cash Number (Optional)" />
+  </div>
   <button id="submit-btn" class="btn">Submit</button>
 
   <div id="results" class="container-box"></div>
@@ -482,8 +491,9 @@
         // Filter the documents on the client based on the current group and subject settings
         const filteredDocs = snapshot.docs.filter(doc => {
             const data = doc.data();
-            const groupMatch = currentGroup ? data.group === currentGroup : true;
-            const subjectMatch = currentSubject ? data.subject === currentSubject : true;
+            // --- FIX: Trim whitespace from data before comparing ---
+            const groupMatch = currentGroup ? (data.group || '').trim() === currentGroup : true;
+            const subjectMatch = currentSubject ? (data.subject || '').trim() === currentSubject : true;
             return groupMatch && subjectMatch;
         });
 
@@ -604,7 +614,8 @@
 
         const scores = [];
         docs.forEach(doc => {
-            const userAnswers = doc.data().answers;
+            const userData = doc.data(); // Get all user data
+            const userAnswers = userData.answers;
             let score = 0;
             const numQuestions = Object.keys(answerKey).length;
             for (let i = 1; i <= numQuestions; i++) {
@@ -613,7 +624,12 @@
                     score++;
                 }
             }
-            scores.push({ name: doc.data().name, score: score, userId: doc.id });
+            scores.push({ 
+                name: userData.name, 
+                score: score, 
+                userId: doc.id,
+                gcash: userData.gcash || ''
+            });
         });
 
         scores.sort((a, b) => b.score - a.score);
@@ -625,7 +641,8 @@
         let html = `<h3>Top ${topN} Students</h3><ul>`;
         topStudents.forEach((student, index) => {
             if (isAdmin) {
-                html += `<li>Rank #${index + 1}: <input type="text" value="${student.name}" data-userid="${student.userId}"/> Score: ${student.score} <button data-userid="${student.userId}">Save</button></li>`;
+                const gcashDisplay = student.gcash ? ` <br><small>G-Cash: ${student.gcash}</small>` : '';
+                html += `<li>Rank #${index + 1}: <input type="text" value="${student.name}" data-userid="${student.userId}"/> Score: ${student.score} <button data-userid="${student.userId}">Save</button>${gcashDisplay}</li>`;
             } else {
                 html += `<li>Rank #${index + 1}: ${student.name} - Score: ${student.score}</li>`;
             }
@@ -637,7 +654,7 @@
           container.querySelectorAll('button').forEach(btn => {
             btn.addEventListener('click', async (e) => {
               const userId = e.target.dataset.userid;
-              const newName = e.target.previousElementSibling.value;
+              const newName = e.target.parentElement.querySelector('input').value;
               await db.collection('responses').doc(userId).update({ name: newName });
               showMessage('Name updated!', 'success');
             });
@@ -977,7 +994,6 @@
 
     document.getElementById('submit-group-score-btn').addEventListener('click', async () => {
         if (!isAdmin) return;
-        // FIX: Trim whitespace from group and subject before querying
         const group = document.getElementById('display-group').textContent.trim();
         const subject = document.getElementById('display-subject').textContent.trim();
         const groupScoreText = document.getElementById('group-score-display').textContent;
@@ -994,7 +1010,6 @@
         }
 
         try {
-            // Query for an existing entry
             const querySnapshot = await db.collection('groupRating')
                 .where('group', '==', group)
                 .where('subject', '==', subject)
@@ -1008,12 +1023,10 @@
             };
 
             if (!querySnapshot.empty) {
-                // Entry exists, update it
                 const docId = querySnapshot.docs[0].id;
                 await db.collection('groupRating').doc(docId).update(dataToSave);
                 showMessage('Group score updated successfully!', 'success');
             } else {
-                // No entry exists, create a new one
                 await db.collection('groupRating').add(dataToSave);
                 showMessage('Group score submitted successfully!', 'success');
             }
@@ -1040,6 +1053,9 @@
       const nameInput = document.getElementById('name-input'); const userName = nameInput.value.trim();
       if (!userName) { showMessage('Please enter your name before submitting.'); nameInput.focus(); return; }
       
+      const gcashInput = document.getElementById('gcash-input');
+      const gcashNumber = gcashInput.value.trim();
+
       const groupText = document.getElementById('display-group').textContent.trim();
       const subjectText = document.getElementById('display-subject').textContent.trim();
       
@@ -1050,6 +1066,7 @@
       });
       await db.collection('responses').doc(userId).set({ 
           name: userName, 
+          gcash: gcashNumber,
           answers,
           group: groupText,
           subject: subjectText,
@@ -1095,9 +1112,7 @@
 
     function setupRealtimeListeners() {
       db.collection('responses').onSnapshot(snapshot => {
-        // This listener now triggers a full results recalculation on any change to responses
         showAggregatedResults();
-        // We still need to check the user's own submission status separately
         const userDoc = snapshot.docs.find(doc => doc.id === userId);
         userHasSubmitted = !!userDoc;
         updateSubmitButtonState();
@@ -1137,7 +1152,7 @@
           document.getElementById('subject-status').innerText = subject;
         }
         setupAnswerKeyListeners();
-        showAggregatedResults(); // Recalculate results if group/subject changes
+        showAggregatedResults();
       });
 
       db.collection('settings').doc('summarySettings').onSnapshot(doc => {
@@ -1177,7 +1192,7 @@
           const answerKeyData = doc.data();
           document.querySelectorAll('.answer-key-input').forEach(input => {
             const itemKey = 'item' + input.dataset.item;
-            if (document.activeElement !== input) { input.value = keyData[itemKey] || ''; }
+            if (document.activeElement !== input) { input.value = answerKeyData[itemKey] || ''; }
           });
         }
         showAggregatedResults();
